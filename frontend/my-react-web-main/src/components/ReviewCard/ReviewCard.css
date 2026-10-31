@@ -1,0 +1,37 @@
+.review-card {
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius);
+  padding: 22px;
+}
+.review-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.review-menu-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+}
+.review-name {
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 8px;
+}
+.review-name .verified-icon {
+  color: #2fb344;
+  font-size: 14px;
+}
+.review-text {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 14px;
+}
+.review-date {
+  color: #999;
+  font-size: 13px;
+  margin: 0;
+}

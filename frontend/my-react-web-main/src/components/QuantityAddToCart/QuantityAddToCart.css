@@ -1,0 +1,31 @@
+.qty-cart-row {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+.qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--gray-bg);
+  border-radius: 999px;
+  padding: 0 18px;
+}
+.qty-stepper button {
+  background: none;
+  border: none;
+  font-size: 12px;
+  padding: 12px 0;
+}
+.add-to-cart-main-btn {
+  flex: 1;
+  background: var(--black);
+  color: var(--white);
+  border: none;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 15px;
+}
+.add-to-cart-main-btn:hover {
+  background: #222;
+}

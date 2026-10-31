@@ -1,0 +1,22 @@
+.announcement-bar {
+  background: var(--black);
+  color: var(--white);
+  text-align: center;
+  font-size: 13px;
+  padding: 10px 40px;
+  position: relative;
+}
+.announcement-bar a {
+  text-decoration: underline;
+  font-weight: 600;
+}
+.announcement-bar button {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--white);
+  font-size: 14px;
+}

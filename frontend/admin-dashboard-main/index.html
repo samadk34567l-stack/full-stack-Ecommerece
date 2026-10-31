@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Berry Dashboard</title>
+    <style>
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body { margin: 0; -webkit-font-smoothing: antialiased; }
+
+      @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(14px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes pulseDot {
+        0% { box-shadow: 0 0 0 0 rgba(76,175,80,0.5); }
+        70% { box-shadow: 0 0 0 6px rgba(76,175,80,0); }
+        100% { box-shadow: 0 0 0 0 rgba(76,175,80,0); }
+      }
+      @keyframes spinSlow {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      /* Custom scrollbar, thin on all screens */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-thumb { background: #cdd5df; border-radius: 8px; }
+      ::-webkit-scrollbar-thumb:hover { background: #9aa4b2; }
+      ::-webkit-scrollbar-track { background: transparent; }
+
+      /* Prevent horizontal overflow on small screens */
+      #root { overflow-x: hidden; min-height: 100vh; }
+
+      img, svg { max-width: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

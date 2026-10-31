@@ -1,0 +1,101 @@
+.site-footer {
+  background: var(--gray-bg);
+  padding: 60px 20px 20px;
+}
+.site-footer .logo {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 24px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.footer-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.6fr repeat(4, 1fr);
+  gap: 24px;
+}
+.footer-brand p {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 14px 0 18px;
+  max-width: 260px;
+}
+.social-icons {
+  display: flex;
+  gap: 10px;
+}
+.social-icons a {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+.social-outline {
+  background: var(--white);
+  color: var(--black);
+  border: 1.5px solid var(--black);
+}
+.social-filled {
+  background: var(--black);
+  color: var(--white);
+}
+.footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.footer-col h5 {
+  font-size: 13px;
+  letter-spacing: 1px;
+  margin: 0 0 4px;
+}
+.footer-col a {
+  font-size: 14px;
+  color: #444;
+}
+.footer-bottom {
+  max-width: var(--max-width);
+  margin: 40px auto 0;
+  border-top: 1px solid var(--gray-border);
+  padding-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.payment-icons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pay-badge {
+  background: var(--white);
+  border: 1px solid var(--gray-border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--black);
+}
+.pay-visa { color: #1a1f71; }
+.pay-mc { color: #eb001b; }
+.pay-pp { color: #003087; }
+
+@media (max-width: 960px) {
+  .footer-inner {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .footer-inner {
+    grid-template-columns: 1fr;
+  }
+}

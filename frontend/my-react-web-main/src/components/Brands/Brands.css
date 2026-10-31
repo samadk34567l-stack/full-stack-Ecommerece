@@ -1,0 +1,18 @@
+.brands-bar {
+  background: var(--black);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 40px;
+  height: 122px;
+  padding: 10px 20px;
+  margin: 0;
+}
+.brand-name {
+  color: var(--white);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 1px;
+}
