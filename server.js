@@ -13,7 +13,13 @@ connectDB();
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 app.use(express.json());
 
 app.get('/', (req, res) => {
@@ -24,6 +30,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/orders', orderRoutes);
+
+// Also support direct routes without /api prefix in case VITE_API_URL omits /api
+app.use('/auth', authRoutes);
+app.use('/products', productRoutes);
+app.use('/customers', customerRoutes);
+app.use('/orders', orderRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

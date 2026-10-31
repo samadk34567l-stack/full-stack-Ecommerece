@@ -2,7 +2,18 @@ import { initialCustomers } from './data/customers.js'
 import { initialOrders, sampleProducts } from './data/orders.js'
 import { users as staticUsers } from './data/users.js'
 
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const defaultBaseUrl =
+  typeof window !== 'undefined' &&
+  window.location.hostname !== 'localhost' &&
+  window.location.hostname !== '127.0.0.1'
+    ? 'https://full-stack-backend-eight-pi.vercel.app/api'
+    : 'http://localhost:5000/api'
+
+const rawApiUrl = (import.meta.env.VITE_API_URL || defaultBaseUrl)
+  .trim()
+  .replace(/\/+$/, '')
+
+export const API_URL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`
 
 let tokenPromise = null
 
