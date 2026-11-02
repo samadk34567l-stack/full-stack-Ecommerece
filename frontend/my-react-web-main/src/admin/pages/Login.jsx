@@ -79,23 +79,8 @@ export default function Login() {
       navigate('/admin')
       return
     } catch (err) {
-      const users = JSON.parse(localStorage.getItem('berry_users') || '[]')
-      const matchedUser = users.find(
-        (u) => (u.email === email || u.username === email) && u.password === password,
-      )
-
-      if (!matchedUser) {
-        setErrors({ password: err.message || 'Invalid email/username or password' })
-        enqueueSnackbar(err.message || 'Invalid credentials!', { variant: 'error' })
-        return
-      }
-
-      localStorage.setItem('berry_current_user', JSON.stringify(matchedUser))
-      localStorage.setItem('berry_is_logged_in', 'true')
-      localStorage.setItem('berry_keep_logged_in', keepLoggedIn ? 'true' : 'false')
-      sessionStorage.setItem('berry_admin_unlocked', 'true')
-      enqueueSnackbar('Signed in successfully!', { variant: 'success' })
-      navigate('/admin')
+      setErrors({ password: err.message || 'Invalid email/username or password' })
+      enqueueSnackbar(err.message || 'Invalid credentials!', { variant: 'error' })
     }
   }
 

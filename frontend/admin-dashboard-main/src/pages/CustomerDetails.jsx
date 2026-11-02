@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useSnackbar } from 'notistack'
 import {
   Box,
   Card,
@@ -10,25 +11,21 @@ import {
   Avatar,
   Divider,
   Grid,
-  MenuItem,
-  Select,
-  FormControl,
-  IconButton,
   Badge,
+  Button,
 } from '@mui/material'
-import EditIcon from '@mui/icons-material/Edit'
 import PhoneIcon from '@mui/icons-material/Phone'
 import EmailIcon from '@mui/icons-material/Email'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
-import { initialCustomers } from '../data/customers.js'
-import { fetchCustomerById } from '../api.js'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import { fetchCustomerById, deleteCustomerApi } from '../api.js'
 
 export default function CustomerDetails() {
-  const navigate = useNavigate()
   const { id } = useParams()
-  const [customer, setCustomer] = useState(
-    () => initialCustomers.find((c) => String(c.id) === String(id)) || initialCustomers[0]
-  )
+  const navigate = useNavigate()
+  const { enqueueSnackbar } = useSnackbar()
+  const [customer, setCustomer] = useState(null)
 
   useEffect(() => {
     fetchCustomerById(id).then((c) => {
@@ -36,28 +33,73 @@ export default function CustomerDetails() {
     })
   }, [id])
 
-  const [firstName, lastName] = customer.name.split(' ')
-  const shippingAddress = 'Florida Square, Wouruno, New York, United States - 393010'
-  const billingAddress = 'Florida Square, Wouruno, New York, United States - 393010'
+  if (!customer) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h6">Loading customer details...</Typography>
+      </Box>
+    )
+  }
+
+  const handleDelete = async () => {
+    const ok = await deleteCustomerApi(customer.id)
+    if (ok) {
+      enqueueSnackbar('Customer deleted from database!', { variant: 'success' })
+      navigate('/customer')
+    } else {
+      enqueueSnackbar('Failed to delete customer', { variant: 'error' })
+    }
+  }
+
+  const [firstName, ...restName] = (customer.name || '').split(' ')
+  const lastName = restName.join(' ')
+  const addressText = customer.address || customer.location || customer.country || 'N/A'
+  const joinedDate = customer.createdAt
+    ? new Date(customer.createdAt).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : 'Recently'
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1.5 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          Details
+          Customer Details
         </Typography>
-        <Breadcrumbs>
-          <Link underline="hover" color="inherit" href="/">
-            Home
-          </Link>
-          <Typography color="text.secondary">Customer</Typography>
-          <Typography color="text.primary">Details</Typography>
-        </Breadcrumbs>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<EditOutlinedIcon />}
+            onClick={() => navigate(`/customer/edit/${customer.id}`)}
+          >
+            Edit
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            startIcon={<DeleteOutlineIcon />}
+            onClick={handleDelete}
+          >
+            Delete
+          </Button>
+          <Breadcrumbs>
+            <Link underline="hover" color="inherit" sx={{ cursor: 'pointer' }} onClick={() => navigate('/admin')}>
+              Home
+            </Link>
+            <Link underline="hover" color="inherit" sx={{ cursor: 'pointer' }} onClick={() => navigate('/customer')}>
+              Customer
+            </Link>
+            <Typography color="text.primary">Details</Typography>
+          </Breadcrumbs>
+        </Box>
       </Box>
 
       <Card sx={{ p: 4 }}>
         <Grid container spacing={4}>
-          {/* Left column */}
           <Grid item xs={12} md={4}>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
               <Badge
@@ -96,14 +138,14 @@ export default function CustomerDetails() {
                 <Typography variant="body2" color="text.secondary">
                   Total Order
                 </Typography>
-                <Typography sx={{ fontWeight: 700 }}>185</Typography>
+                <Typography sx={{ fontWeight: 700 }}>{customer.totalOrders ?? 0}</Typography>
               </Box>
               <Divider orientation="vertical" flexItem />
               <Box sx={{ flex: 1, textAlign: 'center', py: 2 }}>
                 <Typography variant="body2" color="text.secondary">
                   Order Values
                 </Typography>
-                <Typography sx={{ fontWeight: 700 }}>7421</Typography>
+                <Typography sx={{ fontWeight: 700 }}>${Number(customer.totalSpent ?? 0).toFixed(2)}</Typography>
               </Box>
             </Box>
 
@@ -123,7 +165,7 @@ export default function CustomerDetails() {
               >
                 <PhoneIcon sx={{ fontSize: 18, color: '#2196f3' }} />
               </Box>
-              <Typography variant="body2">{customer.phone}</Typography>
+              <Typography variant="body2">{customer.phone || 'N/A'}</Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
               <Box
@@ -155,7 +197,7 @@ export default function CustomerDetails() {
               >
                 <CalendarTodayIcon sx={{ fontSize: 16, color: '#4caf50' }} />
               </Box>
-              <Typography variant="body2">Joined 4 Sep 2026</Typography>
+              <Typography variant="body2">Joined {joinedDate}</Typography>
             </Box>
 
             <Divider sx={{ mb: 3 }} />
@@ -166,41 +208,15 @@ export default function CustomerDetails() {
                 borderColor: 'divider',
                 borderRadius: 2,
                 p: 2,
-                mb: 2,
               }}
             >
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography sx={{ fontWeight: 700 }}>Shipping Address</Typography>
-                <IconButton size="small" sx={{ border: '1px solid', borderColor: 'primary.main' }}>
-                  <EditIcon sx={{ fontSize: 16 }} color="primary" />
-                </IconButton>
-              </Box>
+              <Typography sx={{ fontWeight: 700, mb: 1 }}>Location / Address</Typography>
               <Typography variant="body2" color="text.secondary">
-                {shippingAddress}
-              </Typography>
-            </Box>
-
-            <Box
-              sx={{
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 2,
-                p: 2,
-              }}
-            >
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography sx={{ fontWeight: 700 }}>Billing Address</Typography>
-                <IconButton size="small" sx={{ border: '1px solid', borderColor: 'primary.main' }}>
-                  <EditIcon sx={{ fontSize: 16 }} color="primary" />
-                </IconButton>
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                {billingAddress}
+                {addressText}
               </Typography>
             </Box>
           </Grid>
 
-          {/* Right column */}
           <Grid item xs={12} md={8}>
             <Typography sx={{ fontWeight: 700, mb: 2 }}>Basic Information</Typography>
             <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -208,7 +224,7 @@ export default function CustomerDetails() {
                 <Typography variant="body2" sx={{ mb: 0.5 }}>
                   First Name
                 </Typography>
-                <TextField fullWidth value={firstName} disabled />
+                <TextField fullWidth value={firstName || ''} disabled />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="body2" sx={{ mb: 0.5 }}>
@@ -218,11 +234,11 @@ export default function CustomerDetails() {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  User Name
+                  Company / Username
                 </Typography>
                 <TextField
                   fullWidth
-                  value={customer.name.toLowerCase().replace(' ', '_')}
+                  value={customer.company || customer.name.toLowerCase().replace(/\s+/g, '_')}
                   disabled
                 />
               </Grid>
@@ -234,70 +250,37 @@ export default function CustomerDetails() {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  Contact <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                  Contact
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <FormControl sx={{ width: 90 }}>
-                    <Select value="US" disabled>
-                      <MenuItem value="US">US</MenuItem>
-                    </Select>
-                  </FormControl>
-                  <TextField fullWidth value={customer.phone} disabled />
-                </Box>
+                <TextField fullWidth value={customer.phone || 'N/A'} disabled />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                  Status
+                </Typography>
+                <TextField fullWidth value={customer.status || 'Active'} disabled />
               </Grid>
             </Grid>
 
             <Divider sx={{ mb: 3 }} />
 
             <Typography sx={{ fontWeight: 700, mb: 2 }}>Address Information</Typography>
-            <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid container spacing={3}>
               <Grid item xs={12}>
                 <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  Address
+                  Location / Shipping Address
                 </Typography>
-                <TextField fullWidth value="Florida Square, Wouruno" disabled />
+                <TextField fullWidth value={addressText} disabled />
               </Grid>
-              <Grid item xs={12} sm={4}>
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  Pin Code
-                </Typography>
-                <TextField fullWidth value="393010" disabled />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  City
-                </Typography>
-                <FormControl fullWidth>
-                  <Select value="New York" disabled>
-                    <MenuItem value="New York">New York</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  Country
-                </Typography>
-                <FormControl fullWidth>
-                  <Select value={customer.country} disabled>
-                    <MenuItem value={customer.country}>{customer.country}</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+              {customer.notes && (
+                <Grid item xs={12}>
+                  <Typography variant="body2" sx={{ mb: 0.5 }}>
+                    Notes
+                  </Typography>
+                  <TextField fullWidth multiline rows={2} value={customer.notes} disabled />
+                </Grid>
+              )}
             </Grid>
-
-            <Divider sx={{ mb: 3 }} />
-
-            <Typography sx={{ fontWeight: 700, mb: 2 }}>Additional Notes</Typography>
-            <Typography variant="body2" sx={{ mb: 0.5 }}>
-              Note
-            </Typography>
-            <TextField
-              fullWidth
-              multiline
-              rows={4}
-              value="Sample description text for user profile."
-              disabled
-            />
           </Grid>
         </Grid>
       </Card>

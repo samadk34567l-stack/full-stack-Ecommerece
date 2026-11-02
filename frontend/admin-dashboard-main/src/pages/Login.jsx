@@ -46,8 +46,9 @@ export default function Login() {
   const navigate = useNavigate()
   const { enqueueSnackbar } = useSnackbar()
   const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState('admin@example.com')
-  const [password, setPassword] = useState('password123')
+  const savedSignupEmail = sessionStorage.getItem('berry_last_signup_email') || ''
+  const [email, setEmail] = useState(savedSignupEmail || 'admin@example.com')
+  const [password, setPassword] = useState(savedSignupEmail ? '' : 'password123')
   const [keepLoggedIn, setKeepLoggedIn] = useState(true)
   const [errors, setErrors] = useState({})
 
@@ -75,25 +76,11 @@ export default function Login() {
       await apiLogin(email.trim(), password)
       localStorage.setItem('berry_keep_logged_in', keepLoggedIn ? 'true' : 'false')
       enqueueSnackbar('Signed in successfully!', { variant: 'success' })
-      navigate('/')
+      navigate('/admin')
       return
     } catch (err) {
-      const users = JSON.parse(localStorage.getItem('berry_users') || '[]')
-      const matchedUser = users.find(
-        (u) => (u.email === email || u.username === email) && u.password === password,
-      )
-
-      if (!matchedUser) {
-        setErrors({ password: err.message || 'Invalid email/username or password' })
-        enqueueSnackbar(err.message || 'Invalid credentials!', { variant: 'error' })
-        return
-      }
-
-      localStorage.setItem('berry_current_user', JSON.stringify(matchedUser))
-      localStorage.setItem('berry_is_logged_in', 'true')
-      localStorage.setItem('berry_keep_logged_in', keepLoggedIn ? 'true' : 'false')
-      enqueueSnackbar('Signed in successfully!', { variant: 'success' })
-      navigate('/')
+      setErrors({ password: err.message || 'Invalid email/username or password' })
+      enqueueSnackbar(err.message || 'Invalid credentials!', { variant: 'error' })
     }
   }
 

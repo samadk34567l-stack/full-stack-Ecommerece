@@ -1,6 +1,13 @@
 import { Link } from "react-router-dom";
-import { dressStyles } from "../../data/products.js";
 import "./DressStyle.css";
+
+const dressStyles = [
+  { id: "casual", label: "Casual", image: "/image-9.png" },
+  { id: "formal", label: "Formal", image: "/image-10.png" },
+  { id: "party", label: "Party", image: "/image-11.png" },
+  { id: "gym", label: "Gym", image: "/image-12.png" },
+];
+
 export default function DressStyle() {
   return (
     <section className="dress-style-section">

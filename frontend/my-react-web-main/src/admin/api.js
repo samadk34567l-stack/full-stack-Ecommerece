@@ -1,12 +1,8 @@
-import { initialCustomers } from './data/customers.js'
-import { initialOrders, sampleProducts } from './data/orders.js'
-import { users as staticUsers } from './data/users.js'
-
 const defaultBaseUrl =
   typeof window !== 'undefined' &&
   window.location.hostname !== 'localhost' &&
   window.location.hostname !== '127.0.0.1'
-    ? 'https://full-stack-backend-eight-pi.vercel.app/api'
+    ? 'https://full-stack-project-web-pearl.vercel.app/api'
     : 'http://localhost:5000/api'
 
 const rawApiUrl = (import.meta.env.VITE_API_URL || defaultBaseUrl)
@@ -17,9 +13,13 @@ export const API_URL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/ap
 
 let tokenPromise = null
 
-export async function ensureAdminToken() {
-  const existing = localStorage.getItem('berry_token')
-  if (existing) return existing
+export async function ensureAdminToken(forceRefresh = false) {
+  if (forceRefresh) {
+    localStorage.removeItem('berry_token')
+  } else {
+    const existing = localStorage.getItem('berry_token')
+    if (existing) return existing
+  }
 
   if (!tokenPromise) {
     tokenPromise = fetch(`${API_URL}/auth/login`, {
@@ -37,6 +37,7 @@ export async function ensureAdminToken() {
           localStorage.setItem('berry_token', data.token)
           localStorage.setItem('berry_current_user', JSON.stringify(data))
           localStorage.setItem('berry_is_logged_in', 'true')
+          sessionStorage.setItem('berry_admin_unlocked', 'true')
           return data.token
         }
         return null
@@ -49,11 +50,27 @@ export async function ensureAdminToken() {
   return tokenPromise
 }
 
-async function authHeaders() {
-  const token = await ensureAdminToken()
+async function authHeaders(forceRefresh = false) {
+  const token = await ensureAdminToken(forceRefresh)
   const headers = { 'Content-Type': 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
   return headers
+}
+
+async function authedFetch(url, options = {}) {
+  const headers = await authHeaders(false)
+  let res = await fetch(url, {
+    ...options,
+    headers: { ...headers, ...(options.headers || {}) },
+  })
+  if (res.status === 401) {
+    const freshHeaders = await authHeaders(true)
+    res = await fetch(url, {
+      ...options,
+      headers: { ...freshHeaders, ...(options.headers || {}) },
+    })
+  }
+  return res
 }
 
 // --- AUTH ---
@@ -83,28 +100,45 @@ export async function apiSignup({ name, email, password, phone }) {
   const data = await res.json()
   if (!res.ok) throw new Error(data.message || 'Signup failed')
   sessionStorage.setItem('berry_last_signup_email', email)
+  if (data.token) {
+    localStorage.setItem('berry_token', data.token)
+    localStorage.setItem('berry_current_user', JSON.stringify(data))
+  }
   return data
 }
 
 export function isAdminAuthenticated() {
-  return sessionStorage.getItem('berry_admin_unlocked') === 'true'
+  return (
+    sessionStorage.getItem('berry_admin_unlocked') === 'true' ||
+    localStorage.getItem('berry_is_logged_in') === 'true'
+  )
+}
+
+export function getCurrentAdminUser() {
+  try {
+    const raw = localStorage.getItem('berry_current_user')
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
 }
 
 export function logoutAdmin() {
   sessionStorage.removeItem('berry_admin_unlocked')
   sessionStorage.removeItem('berry_last_signup_email')
   localStorage.removeItem('berry_token')
+  localStorage.removeItem('berry_current_user')
   localStorage.removeItem('berry_is_logged_in')
 }
 
 // --- DASHBOARD ---
 export async function fetchDashboardStats() {
   try {
-    const headers = await authHeaders()
-    const res = await fetch(`${API_URL}/orders/dashboard/stats`, { headers })
+    const res = await authedFetch(`${API_URL}/orders/dashboard/stats`)
     if (!res.ok) throw new Error('Failed to load stats')
     return await res.json()
-  } catch {
+  } catch (err) {
+    console.error('Failed to load dashboard stats from database:', err.message)
     return null
   }
 }
@@ -119,7 +153,12 @@ export function normalizeCustomer(c, index = 0) {
     name: c.name || 'Unknown Customer',
     email: c.email || '',
     phone: c.phone || '',
-    country: c.location || c.country || 'India',
+    address: c.address || c.location || '',
+    city: c.city || '',
+    country: c.country || c.location || 'Pakistan',
+    location: c.location || c.country || '',
+    pinCode: c.pinCode || '',
+    notes: c.notes || '',
     company: c.company || '',
     status: c.status === 'Blocked' ? 'Inactive' : c.status || 'Active',
     totalOrders: Number(c.totalOrders) || 0,
@@ -130,40 +169,38 @@ export function normalizeCustomer(c, index = 0) {
 
 export async function fetchCustomers() {
   try {
-    const headers = await authHeaders()
-    const res = await fetch(`${API_URL}/customers`, { headers })
-    if (!res.ok) throw new Error('Failed to fetch customers')
+    const res = await authedFetch(`${API_URL}/customers`)
+    if (!res.ok) throw new Error('Failed to fetch customers from database')
     const data = await res.json()
     if (Array.isArray(data)) {
       return data.map((c, idx) => normalizeCustomer(c, idx))
     }
+    return []
   } catch (err) {
-    console.warn('Using fallback customers:', err.message)
+    console.error('Error fetching customers from database:', err.message)
+    return []
   }
-  return initialCustomers
 }
 
 export async function fetchCustomerById(id) {
   try {
     if (/^[0-9a-fA-F]{24}$/.test(String(id))) {
-      const headers = await authHeaders()
-      const res = await fetch(`${API_URL}/customers/${id}`, { headers })
+      const res = await authedFetch(`${API_URL}/customers/${id}`)
       if (res.ok) {
         return normalizeCustomer(await res.json())
       }
     }
-  } catch {
-    // fallback below
+    const all = await fetchCustomers()
+    return all.find((c) => String(c.id) === String(id)) || null
+  } catch (err) {
+    console.error('Error fetching customer by ID from database:', err.message)
+    return null
   }
-  const all = await fetchCustomers()
-  return all.find((c) => String(c.id) === String(id)) || initialCustomers[0]
 }
 
 export async function createCustomerApi(payload) {
-  const headers = await authHeaders()
-  const res = await fetch(`${API_URL}/customers`, {
+  const res = await authedFetch(`${API_URL}/customers`, {
     method: 'POST',
-    headers,
     body: JSON.stringify(payload),
   })
   const data = await res.json()
@@ -172,13 +209,8 @@ export async function createCustomerApi(payload) {
 }
 
 export async function updateCustomerApi(id, payload) {
-  if (!/^[0-9a-fA-F]{24}$/.test(String(id))) {
-    return payload
-  }
-  const headers = await authHeaders()
-  const res = await fetch(`${API_URL}/customers/${id}`, {
+  const res = await authedFetch(`${API_URL}/customers/${id}`, {
     method: 'PUT',
-    headers,
     body: JSON.stringify(payload),
   })
   const data = await res.json()
@@ -187,11 +219,8 @@ export async function updateCustomerApi(id, payload) {
 }
 
 export async function deleteCustomerApi(id) {
-  if (!/^[0-9a-fA-F]{24}$/.test(String(id))) return true
-  const headers = await authHeaders()
-  const res = await fetch(`${API_URL}/customers/${id}`, {
+  const res = await authedFetch(`${API_URL}/customers/${id}`, {
     method: 'DELETE',
-    headers,
   })
   return res.ok
 }
@@ -234,6 +263,7 @@ export function normalizeOrder(o) {
     shippingAddress: o.shippingAddress || o.branch || 'Main Branch',
     branch: o.shippingAddress || o.branch || 'Main Branch',
     paymentType: o.paymentMethod || o.paymentType || 'COD',
+    paymentMethod: o.paymentMethod || o.paymentType || 'COD',
     quantity: totalQty,
     orderDate: dateStr,
     status: mapOrderStatusToUi(o.status),
@@ -248,40 +278,38 @@ export function normalizeOrder(o) {
 
 export async function fetchOrders() {
   try {
-    const headers = await authHeaders()
-    const res = await fetch(`${API_URL}/orders`, { headers })
-    if (!res.ok) throw new Error('Failed to fetch orders')
+    const res = await authedFetch(`${API_URL}/orders`)
+    if (!res.ok) throw new Error('Failed to fetch orders from database')
     const data = await res.json()
     if (Array.isArray(data)) {
       return data.map(normalizeOrder)
     }
+    return []
   } catch (err) {
-    console.warn('Using fallback orders:', err.message)
+    console.error('Error fetching orders from database:', err.message)
+    return []
   }
-  return initialOrders.map(normalizeOrder)
 }
 
 export async function fetchOrderById(id) {
   try {
     if (/^[0-9a-fA-F]{24}$/.test(String(id))) {
-      const headers = await authHeaders()
-      const res = await fetch(`${API_URL}/orders/${id}`, { headers })
+      const res = await authedFetch(`${API_URL}/orders/${id}`)
       if (res.ok) {
         return normalizeOrder(await res.json())
       }
     }
-  } catch {
-    // fallback
+    const all = await fetchOrders()
+    return all.find((o) => String(o.id) === String(id)) || null
+  } catch (err) {
+    console.error('Error fetching order by ID from database:', err.message)
+    return null
   }
-  const all = await fetchOrders()
-  return all.find((o) => String(o.id) === String(id)) || normalizeOrder(initialOrders[0])
 }
 
 export async function createOrderApi(payload) {
-  const headers = await authHeaders()
-  const res = await fetch(`${API_URL}/orders`, {
+  const res = await authedFetch(`${API_URL}/orders`, {
     method: 'POST',
-    headers,
     body: JSON.stringify(payload),
   })
   const data = await res.json()
@@ -290,11 +318,8 @@ export async function createOrderApi(payload) {
 }
 
 export async function updateOrderApi(id, payload) {
-  if (!/^[0-9a-fA-F]{24}$/.test(String(id))) return payload
-  const headers = await authHeaders()
-  const res = await fetch(`${API_URL}/orders/${id}`, {
+  const res = await authedFetch(`${API_URL}/orders/${id}`, {
     method: 'PUT',
-    headers,
     body: JSON.stringify(payload),
   })
   const data = await res.json()
@@ -303,60 +328,70 @@ export async function updateOrderApi(id, payload) {
 }
 
 export async function deleteOrderApi(id) {
-  if (!/^[0-9a-fA-F]{24}$/.test(String(id))) return true
-  const headers = await authHeaders()
-  const res = await fetch(`${API_URL}/orders/${id}`, {
+  const res = await authedFetch(`${API_URL}/orders/${id}`, {
     method: 'DELETE',
-    headers,
   })
   return res.ok
 }
 
-// --- PRODUCTS (for OrderCreate / OrderEdit) ---
+// --- PRODUCTS ---
 export async function fetchCatalogProducts() {
   try {
     const res = await fetch(`${API_URL}/products`)
-    if (!res.ok) throw new Error('Failed to fetch products')
+    if (!res.ok) throw new Error('Failed to fetch products from database')
     const data = await res.json()
-    if (Array.isArray(data) && data.length > 0) {
+    if (Array.isArray(data)) {
       return data.map((p, idx) => ({
+        ...p,
         id: String(p._id || p.id),
         _id: p._id,
         name: p.name,
         price: Number(p.price) || 0,
+        category: p.category || 'T-shirts',
+        dressStyle: p.dressStyle || 'Casual',
+        inStock: p.inStock !== false,
+        isNewArrival: Boolean(p.isNewArrival),
+        isTopSelling: Boolean(p.isTopSelling),
         code: String(p._id || `P-${1001 + idx}`).slice(-8).toUpperCase(),
-        image: p.image || `https://i.pravatar.cc/80?img=${(idx % 50) + 1}`,
+        image: p.image || '/image-1.png',
       }))
     }
-  } catch {
-    // fallback
-  }
-  return sampleProducts
-}
-
-// --- USERS ---
-export async function fetchUsers() {
-  try {
-    const headers = await authHeaders()
-    const res = await fetch(`${API_URL}/auth/users`, { headers })
-    if (!res.ok) throw new Error('Failed to fetch users')
-    const data = await res.json()
-    if (Array.isArray(data) && data.length > 0) {
-      return data.map((u, idx) => ({
-        id: String(u._id || u.id),
-        name: u.name,
-        email: u.email,
-        country: u.phone || 'India',
-        friends: u.role === 'admin' ? 'Admin' : 'Customer',
-        followers: u.role === 'admin' ? 'Full Access' : 'Store User',
-        status: u.status || 'Active',
-        verified: true,
-        avatar: u.avatar || `https://i.pravatar.cc/150?img=${(idx % 60) + 10}`,
-      }))
-    }
+    return []
   } catch (err) {
-    console.warn('Using fallback users:', err.message)
+    console.error('Error fetching catalog products from database:', err.message)
+    return []
   }
-  return staticUsers
 }
 
+export async function createProductApi(payload) {
+  const res = await authedFetch(`${API_URL}/products`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.message || 'Failed to create product')
+  return {
+    ...data,
+    id: String(data._id || data.id),
+  }
+}
+
+export async function updateProductApi(id, payload) {
+  const res = await authedFetch(`${API_URL}/products/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.message || 'Failed to update product')
+  return {
+    ...data,
+    id: String(data._id || data.id),
+  }
+}
+
+export async function deleteProductApi(id) {
+  const res = await authedFetch(`${API_URL}/products/${id}`, {
+    method: 'DELETE',
+  })
+  return res.ok
+}

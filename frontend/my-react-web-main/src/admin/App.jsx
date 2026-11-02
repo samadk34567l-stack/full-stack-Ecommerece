@@ -6,8 +6,7 @@ import theme from './theme.js'
 import SuccessSnackbar from './components/SuccessSnackbar.jsx'
 import MainLayout from './layout/MainLayout.jsx'
 import Dashboard from './pages/Dashboard.jsx'
-import UserList from './pages/UserList.jsx'
-import UserProfile from './pages/UserProfile.jsx'
+import ProductList from './pages/ProductList.jsx'
 import CustomerList from './pages/CustomerList.jsx'
 import CustomerCreate from './pages/CustomerCreate.jsx'
 import CustomerDetails from './pages/CustomerDetails.jsx'
@@ -56,10 +55,8 @@ export default function AdminApp() {
                 <MainLayout mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}>
                   <Routes>
                     <Route path="/admin" element={<Dashboard />} />
-                    <Route path="/user" element={<UserList />} />
-                    <Route path="/admin/user" element={<UserList />} />
-                    <Route path="/user/:id" element={<UserProfile />} />
-                    <Route path="/admin/user/:id" element={<UserProfile />} />
+                    <Route path="/products" element={<ProductList />} />
+                    <Route path="/admin/products" element={<ProductList />} />
                     <Route path="/customer" element={<CustomerList />} />
                     <Route path="/admin/customer" element={<CustomerList />} />
                     <Route path="/customer/create" element={<CustomerCreate />} />

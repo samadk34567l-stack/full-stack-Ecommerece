@@ -20,6 +20,13 @@ import {
   FormControl,
   Divider,
   Autocomplete,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Checkbox,
+  Avatar,
+  Pagination,
 } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home'
 import NavigateNextIcon from '@mui/icons-material/NavigateNext'
@@ -28,56 +35,76 @@ import AddIcon from '@mui/icons-material/Add'
 import RemoveIcon from '@mui/icons-material/Remove'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import CreditCardIcon from '@mui/icons-material/CreditCard'
+import CheckIcon from '@mui/icons-material/Check'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import { useNavigate, useParams } from 'react-router-dom'
-import { sampleProducts, initialOrders } from '../data/orders.js'
+import { useSnackbar } from 'notistack'
 import { fetchOrderById, fetchCatalogProducts, updateOrderApi } from '../api.js'
 
-const countries = ['United States', 'Canada', 'United Kingdom', 'India', 'Australia', 'Pakistan', 'Germany']
-const cities = ['New York', 'Toronto', 'London', 'Mumbai', 'Sydney', 'Karachi', 'Berlin']
-const paymentMethods = ['Card', 'UPI', 'COD', 'PayPal']
+const countries = ['Pakistan', 'United States', 'Canada', 'United Kingdom', 'India', 'Australia', 'Germany']
+const cities = ['Karachi', 'Lahore', 'Islamabad', 'New York', 'Toronto', 'London', 'Mumbai', 'Sydney', 'Berlin']
+const paymentMethods = ['Cash on Delivery', 'Online Payment', 'Card', 'COD', 'UPI', 'PayPal']
+const orderStatuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled']
 
 export default function OrderEdit() {
   const navigate = useNavigate()
   const { id } = useParams()
+  const { enqueueSnackbar } = useSnackbar()
 
   const [productSearch, setProductSearch] = useState('')
-  const [catalogProducts, setCatalogProducts] = useState(sampleProducts)
-  const [selectedProducts, setSelectedProducts] = useState([
-    { id: '098256BH', name: 'Apple iPhone 14 Pro', price: 999.0, quantity: 4 },
-    { id: '098336NT', name: 'Samsung Galaxy S23 Ultra', price: 1199.0, quantity: 2 },
-  ])
+  const [catalogProducts, setCatalogProducts] = useState([])
+  const [selectedProducts, setSelectedProducts] = useState([])
+  const [productDialogOpen, setProductDialogOpen] = useState(false)
+  const [dialogSearch, setDialogSearch] = useState('')
+  const [dialogPage, setDialogPage] = useState(1)
+  const productsPerPage = 6
 
-  const [firstName, setFirstName] = useState('Joseph William')
-  const [userName, setUserName] = useState('joseph_william')
-  const [email, setEmail] = useState('john.doe@example.com')
-  const [phone, setPhone] = useState('5623598742')
-  const [address, setAddress] = useState('123 Main Street')
-  const [pinCode, setPinCode] = useState('100011')
-  const [city, setCity] = useState('New York')
-  const [country, setCountry] = useState('United States')
-  const [payment, setPayment] = useState('COD')
-  const [cardNumber, setCardNumber] = useState('')
-  const [expiration, setExpiration] = useState('12/29')
-  const [cvv, setCvv] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [userName, setUserName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState('')
+  const [pinCode, setPinCode] = useState('')
+  const [city, setCity] = useState('Karachi')
+  const [country, setCountry] = useState('Pakistan')
+  const [payment, setPayment] = useState('Cash on Delivery')
+  const [status, setStatus] = useState('Pending')
+  const [deliveryFee, setDeliveryFee] = useState(15)
+  const [discountAmount, setDiscountAmount] = useState(0)
 
   useEffect(() => {
     fetchCatalogProducts().then((list) => {
-      if (list?.length) setCatalogProducts(list)
+      setCatalogProducts(list || [])
     })
     fetchOrderById(id).then((ord) => {
       if (!ord) return
-      setFirstName(ord.customerName || 'Joseph William')
+      setFirstName(ord.customerName || '')
       setUserName((ord.customerName || 'user').toLowerCase().replace(/\s+/g, '_'))
-      setEmail(ord.customerEmail || 'john.doe@example.com')
-      setPhone(String(ord.customerPhone || '').replace(/\D/g, '') || '9876543210')
-      setAddress(ord.shippingAddress || '123 Main Street')
+      setEmail(ord.customerEmail || '')
+      setPhone(String(ord.customerPhone || ''))
+      setAddress(ord.shippingAddress || '')
+      setPayment(ord.paymentMethod || ord.paymentType || 'Cash on Delivery')
+      setStatus(
+        orderStatuses.includes(ord.rawStatus)
+          ? ord.rawStatus
+          : orderStatuses.includes(ord.status)
+          ? ord.status
+          : 'Pending'
+      )
+      setDeliveryFee(Number(ord.deliveryFee ?? 15))
+      setDiscountAmount(Number(ord.discountAmount ?? 0))
       if (Array.isArray(ord.items) && ord.items.length > 0) {
         setSelectedProducts(
           ord.items.map((item, idx) => ({
             id: String(item.productId || item._id || `ITEM-${idx + 1}`),
+            productId: item.productId || null,
             name: item.name,
             price: Number(item.price) || 0,
             quantity: Number(item.quantity) || 1,
+            image: item.image || '',
+            selectedColor: item.selectedColor || '',
+            selectedSize: item.selectedSize || '',
           }))
         )
       }
@@ -87,45 +114,25 @@ export default function OrderEdit() {
   const [errors, setErrors] = useState({})
   const [productError, setProductError] = useState('')
 
-  const isCard = payment === 'Card'
-
   const validators = {
-    firstName: (v) => (!v.trim() ? 'First name is required' : /^[A-Za-z\s]{2,}$/.test(v.trim()) ? '' : 'Enter a valid name (letters only, min 2 chars)'),
-    userName: (v) => (!v.trim() ? 'User name is required' : v.trim().length < 3 ? 'User name must be at least 3 characters' : ''),
-    email: (v) => (!v.trim() ? 'Email is required' : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? '' : 'Enter a valid email address'),
-    phone: (v) => (!v.trim() ? 'Phone number is required' : /^\d{7,15}$/.test(v.trim().replace(/\D/g, '')) ? '' : 'Enter a valid phone number (7-15 digits)'),
-    address: (v) => (!v.trim() ? 'Address is required' : v.trim().length < 5 ? 'Address must be at least 5 characters' : ''),
-    pinCode: (v) => (!v.trim() ? 'Pin code is required' : /^\d{4,10}$/.test(v.trim()) ? '' : 'Enter a valid pin code (numbers only)'),
-    city: (v) => (!v ? 'City is required' : ''),
-    country: (v) => (!v ? 'Country is required' : ''),
-    payment: (v) => (!v ? 'Payment method is required' : ''),
-    cardNumber: (v) => (!isCard ? '' : !v.trim() ? 'Card number is required' : /^\d{12,19}$/.test(v.trim().replace(/\s/g, '')) ? '' : 'Enter a valid card number'),
-    expiration: (v) => (!isCard ? '' : !v.trim() ? 'Expiration date is required' : /^(0[1-9]|1[0-2])\/\d{2}$/.test(v.trim()) ? '' : 'Use MM/YY format'),
-    cvv: (v) => (!isCard ? '' : !v.trim() ? 'CVV is required' : /^\d{3,4}$/.test(v.trim()) ? '' : 'Enter a valid CVV'),
+    firstName: (v) => (!v.trim() ? 'Customer name is required' : ''),
+    email: (v) =>
+      !v.trim()
+        ? 'Email is required'
+        : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+        ? ''
+        : 'Enter a valid email address',
+    address: (v) => (!v.trim() ? 'Shipping address is required' : ''),
   }
 
-  const fieldValues = {
-    firstName,
-    userName,
-    email,
-    phone,
-    address,
-    pinCode,
-    city,
-    country,
-    payment,
-    cardNumber,
-    expiration,
-    cvv,
-  }
+  const fieldValues = { firstName, email, address }
 
   const validateField = (name, value) => {
+    if (!validators[name]) return ''
     const message = validators[name](value)
     setErrors((prev) => ({ ...prev, [name]: message }))
     return message
   }
-
-  const handleBlur = (name) => () => validateField(name, fieldValues[name])
 
   const validateAll = () => {
     const newErrors = {}
@@ -157,64 +164,92 @@ export default function OrderEdit() {
     setSelectedProducts((prev) => prev.filter((p) => p.id !== id))
   }
 
+  const toggleProductInDialog = (product) => {
+    setSelectedProducts((prev) => {
+      const exists = prev.some((p) => p.id === product.id)
+      if (exists) {
+        return prev.filter((p) => p.id !== product.id)
+      }
+      return [...prev, { ...product, quantity: 1 }]
+    })
+    setProductError('')
+  }
+
+  const dialogFilteredProducts = catalogProducts.filter((p) =>
+    p.name.toLowerCase().includes(dialogSearch.toLowerCase())
+  )
+  const dialogPageCount = Math.max(1, Math.ceil(dialogFilteredProducts.length / productsPerPage))
+  const dialogPagedProducts = dialogFilteredProducts.slice(
+    (dialogPage - 1) * productsPerPage,
+    dialogPage * productsPerPage
+  )
+
+  const openProductDialog = () => {
+    setDialogSearch('')
+    setDialogPage(1)
+    setProductDialogOpen(true)
+  }
+
   const updateQuantity = (id, qty) => {
     setSelectedProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, quantity: Math.max(1, qty) } : p))
     )
   }
 
-  const total = selectedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0)
+  const subtotal = selectedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0)
+  const totalAmount = Math.max(0, subtotal - discountAmount + deliveryFee)
 
   const handleUpdate = async () => {
     if (!validateAll()) return
-    await updateOrderApi(id, {
-      customerName: firstName,
-      customerEmail: email,
-      customerPhone: phone,
-      shippingAddress: address,
-      paymentMethod: payment,
-      items: selectedProducts.map((p) => ({
-        name: p.name,
-        price: p.price,
-        quantity: p.quantity,
-      })),
-      subtotal: total,
-      totalAmount: total + 15,
-    }).catch(() => null)
-
-    const orderId = Number(id)
-    const idx = initialOrders.findIndex((o) => String(o.id) === String(id))
-    const updated = {
-      id: Number.isNaN(orderId) ? id : orderId,
-      customerName: firstName,
-      branch: country,
-      paymentType: payment,
-      quantity: selectedProducts.reduce((sum, p) => sum + p.quantity, 0),
-      orderDate:
-        idx !== -1
-          ? initialOrders[idx].orderDate
-          : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      status: idx !== -1 ? initialOrders[idx].status : 'Pending',
+    try {
+      await updateOrderApi(id, {
+        customerName: firstName.trim(),
+        customerEmail: email.trim(),
+        customerPhone: phone.trim(),
+        shippingAddress: address.trim(),
+        paymentMethod: payment,
+        status,
+        items: selectedProducts.map((p) => ({
+          ...(p.productId || /^[0-9a-fA-F]{24}$/.test(String(p.id))
+            ? { productId: p.productId || p.id }
+            : {}),
+          name: p.name,
+          price: p.price,
+          quantity: p.quantity,
+          image: p.image || '',
+          selectedColor: p.selectedColor || '',
+          selectedSize: p.selectedSize || '',
+        })),
+        subtotal,
+        discountAmount,
+        deliveryFee,
+        totalAmount,
+      })
+      enqueueSnackbar('Order updated in database!', { variant: 'success' })
+      navigate('/order')
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Failed to update order', { variant: 'error' })
     }
-    if (idx !== -1) {
-      initialOrders[idx] = updated
-    } else {
-      initialOrders.unshift(updated)
-    }
-    navigate('/order')
   }
 
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          Edit
+          Edit Order
         </Typography>
         <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
-          <Link underline="hover" color="inherit" href="/" sx={{ display: 'flex', alignItems: 'center' }}>
+          <Link
+            underline="hover"
+            color="inherit"
+            onClick={() => navigate('/admin')}
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+          >
             <HomeIcon fontSize="small" />
           </Link>
-          <Typography color="text.secondary">Order</Typography>
+          <Link underline="hover" color="inherit" onClick={() => navigate('/order')} sx={{ cursor: 'pointer' }}>
+            Order
+          </Link>
           <Typography color="text.primary" sx={{ fontWeight: 600 }}>
             Edit
           </Typography>
@@ -224,11 +259,11 @@ export default function OrderEdit() {
       <Card sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Select Product
+            Products in Order
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2, flexWrap: 'wrap' }}>
           <Autocomplete
             freeSolo
             options={filteredProducts}
@@ -238,7 +273,7 @@ export default function OrderEdit() {
             onChange={(e, val) => {
               if (val && typeof val !== 'string') addProduct(val)
             }}
-            sx={{ width: 320 }}
+            sx={{ width: { xs: '100%', sm: 320 } }}
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -255,12 +290,7 @@ export default function OrderEdit() {
               />
             )}
           />
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            disabled={filteredProducts.length === 0}
-            onClick={() => filteredProducts[0] && addProduct(filteredProducts[0])}
-          >
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openProductDialog}>
             Add Product
           </Button>
         </Box>
@@ -288,19 +318,12 @@ export default function OrderEdit() {
                 <TableRow key={p.id} hover>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Box
-                        sx={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: 1.5,
-                          bgcolor: 'grey.200',
-                        }}
-                      />
+                      <Avatar src={p.image} alt={p.name} variant="rounded" sx={{ width: 36, height: 36 }} />
                       {p.name}
                     </Box>
                   </TableCell>
-                  <TableCell>{p.id}</TableCell>
-                  <TableCell>${p.price.toFixed(2)}</TableCell>
+                  <TableCell>#{String(p.id).slice(-6)}</TableCell>
+                  <TableCell>${Number(p.price).toFixed(2)}</TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       <IconButton
@@ -338,61 +361,55 @@ export default function OrderEdit() {
         </TableContainer>
 
         {selectedProducts.length === 0 && (
-          <Box sx={{ textAlign: 'center', py: 6 }}>
-            <Typography sx={{ fontWeight: 700, fontSize: 18 }}>No products selected!</Typography>
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Typography sx={{ fontWeight: 700, fontSize: 16 }}>No products selected!</Typography>
             <Typography variant="body2" color="text.secondary">
-              No products selected. Use the search bar to find and add items, then continue.
+              Use the search bar or Add Product button to add items.
             </Typography>
           </Box>
         )}
 
         <Divider sx={{ my: 2 }} />
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 3 }}>
+          <Typography variant="body1" color="text.secondary">
+            Subtotal: ${subtotal.toFixed(2)}
+          </Typography>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Total : ${total.toFixed(2)}
+            Total: ${totalAmount.toFixed(2)}
           </Typography>
         </Box>
       </Card>
 
       <Card sx={{ p: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-          Customer Details
+          Customer &amp; Order Details
         </Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 3 }}>
           <Box>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              First Name <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+              Customer Name <Box component="span" sx={{ color: 'error.main' }}>*</Box>
             </Typography>
             <TextField
               fullWidth
               size="small"
-              placeholder="Enter first name"
               value={firstName}
               onChange={(e) => {
                 setFirstName(e.target.value)
                 if (errors.firstName) validateField('firstName', e.target.value)
               }}
-              onBlur={handleBlur('firstName')}
               error={Boolean(errors.firstName)}
               helperText={errors.firstName}
             />
           </Box>
           <Box>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              User Name <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+              User Name
             </Typography>
             <TextField
               fullWidth
               size="small"
-              placeholder="Enter user name"
               value={userName}
-              onChange={(e) => {
-                setUserName(e.target.value)
-                if (errors.userName) validateField('userName', e.target.value)
-              }}
-              onBlur={handleBlur('userName')}
-              error={Boolean(errors.userName)}
-              helperText={errors.userName}
+              onChange={(e) => setUserName(e.target.value)}
             />
           </Box>
           <Box>
@@ -402,36 +419,24 @@ export default function OrderEdit() {
             <TextField
               fullWidth
               size="small"
-              placeholder="Enter your email"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value)
                 if (errors.email) validateField('email', e.target.value)
               }}
-              onBlur={handleBlur('email')}
               error={Boolean(errors.email)}
               helperText={errors.email}
             />
           </Box>
           <Box>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              Phone Number <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+              Phone Number
             </Typography>
             <TextField
               fullWidth
               size="small"
-              placeholder="1231x xxxxx"
               value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value)
-                if (errors.phone) validateField('phone', e.target.value)
-              }}
-              onBlur={handleBlur('phone')}
-              error={Boolean(errors.phone)}
-              helperText={errors.phone}
-              InputProps={{
-                startAdornment: <InputAdornment position="start">US</InputAdornment>,
-              }}
+              onChange={(e) => setPhone(e.target.value)}
             />
           </Box>
         </Box>
@@ -441,18 +446,16 @@ export default function OrderEdit() {
         </Typography>
         <Box sx={{ mb: 2 }}>
           <Typography variant="body2" sx={{ mb: 0.5 }}>
-            Address <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+            Shipping Address <Box component="span" sx={{ color: 'error.main' }}>*</Box>
           </Typography>
           <TextField
             fullWidth
             size="small"
-            placeholder="Enter your address"
             value={address}
             onChange={(e) => {
               setAddress(e.target.value)
               if (errors.address) validateField('address', e.target.value)
             }}
-            onBlur={handleBlur('address')}
             error={Boolean(errors.address)}
             helperText={errors.address}
           />
@@ -460,184 +463,204 @@ export default function OrderEdit() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2, mb: 3 }}>
           <Box>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              Pin Code <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+              Pin Code
             </Typography>
             <TextField
               fullWidth
               size="small"
-              placeholder="123456"
               value={pinCode}
-              onChange={(e) => {
-                setPinCode(e.target.value)
-                if (errors.pinCode) validateField('pinCode', e.target.value)
-              }}
-              onBlur={handleBlur('pinCode')}
-              error={Boolean(errors.pinCode)}
-              helperText={errors.pinCode}
+              onChange={(e) => setPinCode(e.target.value)}
             />
           </Box>
           <Box>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              City <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+              City
             </Typography>
-            <FormControl fullWidth size="small" error={Boolean(errors.city)}>
-              <Select
-                displayEmpty
-                value={city}
-                onChange={(e) => {
-                  setCity(e.target.value)
-                  validateField('city', e.target.value)
-                }}
-                onBlur={handleBlur('city')}
-                renderValue={(val) => val || <Box component="span" sx={{ color: 'text.disabled' }}>Select City</Box>}
-              >
+            <FormControl fullWidth size="small">
+              <Select value={city} onChange={(e) => setCity(e.target.value)}>
                 {cities.map((c) => (
                   <MenuItem key={c} value={c}>
                     {c}
                   </MenuItem>
                 ))}
               </Select>
-              {errors.city && (
-                <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                  {errors.city}
-                </Typography>
-              )}
             </FormControl>
           </Box>
           <Box>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              Country <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+              Country
             </Typography>
-            <FormControl fullWidth size="small" error={Boolean(errors.country)}>
-              <Select
-                displayEmpty
-                value={country}
-                onChange={(e) => {
-                  setCountry(e.target.value)
-                  validateField('country', e.target.value)
-                }}
-                onBlur={handleBlur('country')}
-                renderValue={(val) => val || <Box component="span" sx={{ color: 'text.disabled' }}>Select Country</Box>}
-              >
+            <FormControl fullWidth size="small">
+              <Select value={country} onChange={(e) => setCountry(e.target.value)}>
                 {countries.map((c) => (
                   <MenuItem key={c} value={c}>
                     {c}
                   </MenuItem>
                 ))}
               </Select>
-              {errors.country && (
-                <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                  {errors.country}
-                </Typography>
-              )}
             </FormControl>
           </Box>
         </Box>
 
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-          Payment
+          Payment &amp; Order Status
         </Typography>
-        <FormControl fullWidth size="small" sx={{ mb: 3 }} error={Boolean(errors.payment)}>
-          <Select
-            displayEmpty
-            value={payment}
-            onChange={(e) => {
-              setPayment(e.target.value)
-              validateField('payment', e.target.value)
-            }}
-            onBlur={handleBlur('payment')}
-            startAdornment={
-              <InputAdornment position="start">
-                <CreditCardIcon fontSize="small" />
-              </InputAdornment>
-            }
-            renderValue={(val) => val || <Box component="span" sx={{ color: 'text.disabled' }}>Select Payment Method</Box>}
-          >
-            {paymentMethods.map((m) => (
-              <MenuItem key={m} value={m}>
-                {m}
-              </MenuItem>
-            ))}
-          </Select>
-          {errors.payment && (
-            <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-              {errors.payment}
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 3 }}>
+          <Box>
+            <Typography variant="body2" sx={{ mb: 0.5 }}>
+              Payment Method
             </Typography>
-          )}
-        </FormControl>
-
-        {isCard && (
-          <>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ mb: 0.5 }}>
-                Credit Card Number <Box component="span" sx={{ color: 'error.main' }}>*</Box>
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                type="password"
-                placeholder="Enter card number"
-                value={cardNumber}
-                onChange={(e) => {
-                  setCardNumber(e.target.value)
-                  if (errors.cardNumber) validateField('cardNumber', e.target.value)
-                }}
-                onBlur={handleBlur('cardNumber')}
-                error={Boolean(errors.cardNumber)}
-                helperText={errors.cardNumber}
-              />
-            </Box>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 3 }}>
-              <Box>
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  Expiration Date <Box component="span" sx={{ color: 'error.main' }}>*</Box>
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="MM/YY"
-                  value={expiration}
-                  onChange={(e) => {
-                    setExpiration(e.target.value)
-                    if (errors.expiration) validateField('expiration', e.target.value)
-                  }}
-                  onBlur={handleBlur('expiration')}
-                  error={Boolean(errors.expiration)}
-                  helperText={errors.expiration}
-                />
-              </Box>
-              <Box>
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  CVV <Box component="span" sx={{ color: 'error.main' }}>*</Box>
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="password"
-                  placeholder="123"
-                  value={cvv}
-                  onChange={(e) => {
-                    setCvv(e.target.value)
-                    if (errors.cvv) validateField('cvv', e.target.value)
-                  }}
-                  onBlur={handleBlur('cvv')}
-                  error={Boolean(errors.cvv)}
-                  helperText={errors.cvv}
-                />
-              </Box>
-            </Box>
-          </>
-        )}
+            <FormControl fullWidth size="small">
+              <Select
+                value={paymentMethods.includes(payment) ? payment : 'Cash on Delivery'}
+                onChange={(e) => setPayment(e.target.value)}
+                startAdornment={
+                  <InputAdornment position="start">
+                    <CreditCardIcon fontSize="small" />
+                  </InputAdornment>
+                }
+              >
+                {paymentMethods.map((m) => (
+                  <MenuItem key={m} value={m}>
+                    {m}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+          <Box>
+            <Typography variant="body2" sx={{ mb: 0.5 }}>
+              Order Status
+            </Typography>
+            <FormControl fullWidth size="small">
+              <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+                {orderStatuses.map((s) => (
+                  <MenuItem key={s} value={s}>
+                    {s}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </Box>
 
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
           <Button color="error" onClick={() => navigate('/order')}>
             Discard
           </Button>
           <Button variant="contained" color="primary" onClick={handleUpdate}>
-            Update
+            Update Order
           </Button>
         </Box>
       </Card>
+
+      <Dialog
+        open={productDialogOpen}
+        onClose={() => setProductDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ pb: 0.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                All Products
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Add products to this order.
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              startIcon={<CheckIcon />}
+              onClick={() => setProductDialogOpen(false)}
+              sx={{ borderRadius: 2 }}
+            >
+              Done
+            </Button>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent dividers sx={{ px: 3 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search product"
+            value={dialogSearch}
+            onChange={(e) => {
+              setDialogSearch(e.target.value)
+              setDialogPage(1)
+            }}
+            sx={{ mb: 1, mt: 1, '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: 'grey.50' } }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: 'grey.500' }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          {dialogPagedProducts.map((product) => {
+            const checked = selectedProducts.some((p) => p.id === product.id)
+            return (
+              <Box
+                key={product.id}
+                onClick={() => toggleProductInDialog(product)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  py: 1.5,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  cursor: 'pointer',
+                  '&:last-of-type': { borderBottom: 'none' },
+                }}
+              >
+                <Checkbox checked={checked} onClick={(e) => e.stopPropagation()} onChange={() => toggleProductInDialog(product)} />
+                <Avatar src={product.image} variant="rounded" sx={{ width: 40, height: 40, mr: 1.5 }} />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {product.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    ${Number(product.price).toFixed(2)} • {product.category}
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  #{product.code}
+                </Typography>
+              </Box>
+            )
+          })}
+        </DialogContent>
+
+        <DialogActions sx={{ justifyContent: 'space-between', px: 3, py: 1.5 }}>
+          <Button
+            startIcon={<ArrowBackIcon fontSize="small" />}
+            disabled={dialogPage === 1}
+            onClick={() => setDialogPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <Pagination
+            count={dialogPageCount}
+            page={dialogPage}
+            onChange={(e, value) => setDialogPage(value)}
+            shape="rounded"
+            siblingCount={1}
+            boundaryCount={1}
+          />
+          <Button
+            endIcon={<ArrowForwardIcon fontSize="small" />}
+            disabled={dialogPage === dialogPageCount}
+            onClick={() => setDialogPage((p) => Math.min(dialogPageCount, p + 1))}
+          >
+            Next
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaSearch, FaShoppingCart, FaUser, FaBars, FaTimes, FaChevronDown } from "react-icons/fa";
 import { useCart } from "../../context/CartContext.jsx";
-import { allProducts as staticAllProducts } from "../../data/products.js";
 import { fetchProducts } from "../../api.js";
 import "./Header.css";
 
@@ -11,11 +10,11 @@ export default function Header({ onCartClick }) {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [products, setProducts] = useState(staticAllProducts);
+  const [products, setProducts] = useState([]);
 
   useEffect(() => {
     fetchProducts().then((list) => {
-      if (list?.length) setProducts(list);
+      setProducts(list || []);
     });
   }, []);
 

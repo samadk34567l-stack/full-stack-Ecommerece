@@ -9,7 +9,7 @@ const data = [
 
 export default function TotalOrderCard({ count }) {
   const [range, setRange] = useState('Year')
-  const displayCount = count !== undefined && count !== null ? Number(count).toLocaleString() : '3,286'
+  const displayCount = Number(count || 0).toLocaleString()
   return (
     <Card
       sx={{

@@ -102,9 +102,19 @@ export default function CartPage() {
           <p style={{ fontWeight: 700, marginBottom: "20px" }}>
             Order ID: #{String(placedOrder._id || "").slice(-6).toUpperCase()} &bull; Total: ${placedOrder.totalAmount}
           </p>
-          <Link to="/" className="shop-now-btn" onClick={() => setPlacedOrder(null)}>
-            Continue Shopping
-          </Link>
+          <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+            <Link to="/" className="shop-now-btn" onClick={() => setPlacedOrder(null)}>
+              Continue Shopping
+            </Link>
+            <Link
+              to="/order"
+              className="shop-now-btn"
+              style={{ background: "#00897b" }}
+              onClick={() => setPlacedOrder(null)}
+            >
+              View in Admin Orders
+            </Link>
+          </div>
         </div>
       </div>
     );

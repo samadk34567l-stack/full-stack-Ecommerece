@@ -12,7 +12,7 @@ import CartPage from "./pages/CartPage/CartPage.jsx";
 import CategoryPage from "./pages/CategoryPage/CategoryPage.jsx";
 import AdminApp from "./admin/App.jsx";
 
-const ADMIN_PREFIXES = ["/admin", "/login", "/signup", "/user", "/customer", "/order"];
+const ADMIN_PREFIXES = ["/admin", "/login", "/signup", "/products", "/customer", "/order"];
 
 export default function App() {
   const [cartOpen, setCartOpen] = useState(false);

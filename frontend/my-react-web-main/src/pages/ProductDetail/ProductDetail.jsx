@@ -8,7 +8,6 @@ import QuantityAddToCart from "../../components/QuantityAddToCart/QuantityAddToC
 import ProductTabs from "../../components/ProductTabs/ProductTabs.jsx";
 import ReviewsList from "../../components/ReviewsList/ReviewsList.jsx";
 import ProductCard from "../../components/ProductCard/ProductCard.jsx";
-import { getProductById, getRelatedProducts } from "../../data/products.js";
 import { fetchProductById, fetchProducts, submitProductReview } from "../../api.js";
 import { useCart } from "../../context/CartContext.jsx";
 import "./ProductDetail.css";
@@ -17,14 +16,12 @@ export default function ProductDetail() {
   const { id } = useParams();
   const { addToCart } = useCart();
 
-  const [product, setProduct] = useState(() => getProductById(id));
-  const [related, setRelated] = useState(() =>
-    product ? getRelatedProducts(product, 4) : []
-  );
-  const [loading, setLoading] = useState(!product);
+  const [product, setProduct] = useState(null);
+  const [related, setRelated] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [color, setColor] = useState(product?.colors?.[0] ?? "");
-  const [size, setSize] = useState(product?.sizes?.[2] || product?.sizes?.[0] || "");
+  const [color, setColor] = useState("");
+  const [size, setSize] = useState("");
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState("Rating & Reviews");
   const [added, setAdded] = useState(false);
@@ -32,16 +29,7 @@ export default function ProductDetail() {
   useEffect(() => {
     window.scrollTo(0, 0);
     let active = true;
-    const localProd = getProductById(id);
-    if (localProd) {
-      setProduct(localProd);
-      setColor(localProd.colors?.[0] ?? "");
-      setSize(localProd.sizes?.[2] || localProd.sizes?.[0] || "");
-      setQty(1);
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
+    setLoading(true);
 
     fetchProductById(id).then((fetched) => {
       if (!active) return;
@@ -50,6 +38,8 @@ export default function ProductDetail() {
         setColor(fetched.colors?.[0] ?? "");
         setSize(fetched.sizes?.[2] || fetched.sizes?.[0] || "");
         setQty(1);
+      } else {
+        setProduct(null);
       }
       setLoading(false);
     });
@@ -91,24 +81,7 @@ export default function ProductDetail() {
     if (product._id && /^[0-9a-fA-F]{24}$/.test(String(product._id))) {
       const updated = await submitProductReview(product._id, reviewInput);
       setProduct(updated);
-      return;
     }
-    const localReview = {
-      id: `r-${Date.now()}`,
-      name: reviewInput.name,
-      rating: Number(reviewInput.rating) || 5,
-      text: reviewInput.comment,
-      verified: true,
-      date: new Date().toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }),
-    };
-    setProduct((prev) => ({
-      ...prev,
-      reviews: [localReview, ...(prev.reviews || [])],
-    }));
   }
 
   return (

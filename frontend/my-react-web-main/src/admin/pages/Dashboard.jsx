@@ -34,20 +34,20 @@ export default function Dashboard() {
         <IncomeCard
           dark
           icon={<ReceiptLongOutlinedIcon fontSize="small" />}
-          value={stats ? `$${stats.totalEarnings}` : '$45.2k'}
+          value={stats ? `$${Number(stats.totalEarnings || 0).toFixed(2)}` : '$0.00'}
           label="Total Income"
         />
       </Grid>
       <Grid item xs={12} sm={6} md={6} lg={2.4}>
         <IncomeCard
           dark={false}
-          value={stats ? String(stats.totalProducts) : '1,024'}
-          label={stats ? 'Total Products' : 'Pending Invoices'}
+          value={stats ? String(stats.totalProducts ?? 0) : '0'}
+          label="Total Products"
         />
       </Grid>
 
       <Grid item xs={12} md={8}>
-        <TotalGrowthBarChart />
+        <TotalGrowthBarChart totalEarnings={stats?.totalEarnings} />
       </Grid>
       <Grid item xs={12} md={4}>
         <PopularStocks />

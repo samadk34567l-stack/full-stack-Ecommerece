@@ -4,20 +4,19 @@ import Brands from "../../components/Brands/Brands.jsx";
 import ProductSection from "../../components/ProductSection/ProductSection.jsx";
 import DressStyle from "../../components/DressStyle/DressStyle.jsx";
 import Testimonials from "../../components/Testimonials/Testimonials.jsx";
-import { newArrivals as staticNewArrivals, topSelling as staticTopSelling } from "../../data/products.js";
 import { fetchHomeSections } from "../../api.js";
 import "./HomePage.css";
 
 export default function HomePage() {
-  const [newArrivals, setNewArrivals] = useState(staticNewArrivals);
-  const [topSelling, setTopSelling] = useState(staticTopSelling);
+  const [newArrivals, setNewArrivals] = useState([]);
+  const [topSelling, setTopSelling] = useState([]);
 
   useEffect(() => {
     let active = true;
     fetchHomeSections().then((sections) => {
       if (!active) return;
-      if (sections.newArrivals?.length) setNewArrivals(sections.newArrivals);
-      if (sections.topSelling?.length) setTopSelling(sections.topSelling);
+      setNewArrivals(sections.newArrivals || []);
+      setTopSelling(sections.topSelling || []);
     });
     return () => {
       active = false;

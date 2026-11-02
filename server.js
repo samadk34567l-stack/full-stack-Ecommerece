@@ -9,7 +9,7 @@ const customerRoutes = require('./routes/customerRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 
 dotenv.config();
-connectDB();
+connectDB().catch((err) => console.error('Initial DB connection failed:', err.message));
 
 const app = express();
 
@@ -22,8 +22,30 @@ app.use(
 );
 app.use(express.json());
 
+// Ensure MongoDB connection is established before handling any API route
+app.use(async (req, res, next) => {
+  if (req.path === '/' || req.path === '/api') {
+    return next();
+  }
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    res.status(503);
+    next(new Error(`Database connection failed: ${error.message}`));
+  }
+});
+
 app.get('/', (req, res) => {
   res.send('E-Commerce & Admin Dashboard API Running Successfully!');
+});
+
+app.get('/api', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'E-Commerce & Admin Dashboard API is active',
+    endpoints: ['/api/products', '/api/orders', '/api/customers', '/api/auth/login', '/api/auth/register'],
+  });
 });
 
 app.use('/api/auth', authRoutes);

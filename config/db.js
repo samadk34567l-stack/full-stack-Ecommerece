@@ -7,21 +7,42 @@ try {
   // Ignore if DNS servers cannot be overridden
 }
 
+let connectionPromise = null;
+
 const connectDB = async () => {
-  try {
-    let rawUri = String(process.env.MONGO_URI || process.env.MONGODB_URI || '').trim();
-    rawUri = rawUri.replace(/^(MONGO_URI|MONGODB_URI)\s*=\s*/i, '').replace(/^["']|["']$/g, '').trim();
-    const conn = await mongoose.connect(rawUri, {
-      serverSelectionTimeoutMS: 5000,
-    });
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-    return true;
-  } catch (error) {
-    console.warn(`⚠️ MongoDB Atlas connection warning: ${error.message}`);
-    console.warn(`👉 Tip: MongoDB Atlas -> Network Access -> Add IP Address -> "Allow Access from Anywhere" (0.0.0.0/0) karein.`);
-    console.log(`✅ Server fallback memory mode mein chal raha hai taake API kabhi band na ho!`);
-    return false;
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
   }
+
+  if (connectionPromise) {
+    return connectionPromise;
+  }
+
+  let rawUri = String(process.env.MONGO_URI || process.env.MONGODB_URI || '').trim();
+  rawUri = rawUri
+    .replace(/^(MONGO_URI|MONGODB_URI)\s*=\s*/i, '')
+    .replace(/^["']|["']$/g, '')
+    .trim();
+
+  if (!rawUri) {
+    throw new Error('MONGO_URI environment variable set nahi hai');
+  }
+
+  connectionPromise = mongoose
+    .connect(rawUri, {
+      serverSelectionTimeoutMS: 10000,
+    })
+    .then((conn) => {
+      console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+      return conn;
+    })
+    .catch((error) => {
+      connectionPromise = null;
+      console.error(`❌ MongoDB connection error: ${error.message}`);
+      throw error;
+    });
+
+  return connectionPromise;
 };
 
 const isDbConnected = () => mongoose.connection.readyState === 1;

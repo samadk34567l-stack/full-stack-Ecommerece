@@ -1,5 +1,6 @@
-import { brands } from "../../data/products.js";
 import "./Brands.css";
+
+const brands = ["VERSACE", "ZARA", "GUCCI", "PRADA", "Calvin Klein"];
 
 export default function Brands() {
   return (

@@ -5,7 +5,7 @@ import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 
 export default function VisitorsCard({ count }) {
-  const displayCount = count !== undefined && count !== null ? String(count) : '18.9k'
+  const displayCount = String(count ?? 0)
   return (
     <Card
       sx={{

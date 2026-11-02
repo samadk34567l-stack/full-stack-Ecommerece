@@ -1,15 +1,8 @@
-import {
-  allProducts as staticAllProducts,
-  newArrivals as staticNewArrivals,
-  topSelling as staticTopSelling,
-  getProductById as getStaticProductById,
-} from "./data/products.js";
-
 const defaultBaseUrl =
   typeof window !== "undefined" &&
   window.location.hostname !== "localhost" &&
   window.location.hostname !== "127.0.0.1"
-    ? "https://full-stack-backend-eight-pi.vercel.app/api"
+    ? "https://full-stack-project-web-pearl.vercel.app/api"
     : "http://localhost:5000/api";
 
 const rawApiUrl = (import.meta.env.VITE_API_URL || defaultBaseUrl)
@@ -85,39 +78,23 @@ export function normalizeProduct(p) {
   };
 }
 
-let productsCachePromise = null;
-
-export async function fetchProducts(forceRefresh = false) {
-  if (!forceRefresh && productsCachePromise) {
-    return productsCachePromise;
-  }
-  productsCachePromise = (async () => {
-    try {
-      const res = await fetch(`${API_URL}/products`);
-      if (!res.ok) throw new Error("Failed to fetch products");
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        return data.map(normalizeProduct);
-      }
-    } catch (err) {
-      productsCachePromise = null;
-      console.warn("Backend offline or unreachable, using local fallback products:", err.message);
+export async function fetchProducts() {
+  try {
+    const res = await fetch(`${API_URL}/products`);
+    if (!res.ok) throw new Error("Failed to fetch products from database");
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      return data.map(normalizeProduct);
     }
-    return staticAllProducts;
-  })();
-  return productsCachePromise;
+    return [];
+  } catch (err) {
+    console.error("Database fetch error:", err.message);
+    return [];
+  }
 }
 
 export async function fetchHomeSections() {
   const products = await fetchProducts();
-  const isFromBackend = products !== staticAllProducts;
-  if (!isFromBackend) {
-    return {
-      newArrivals: staticNewArrivals,
-      topSelling: staticTopSelling,
-      allProducts: staticAllProducts,
-    };
-  }
   const arrivals = products.filter((p) => p.isNewArrival);
   const selling = products.filter((p) => p.isTopSelling);
   return {
@@ -128,7 +105,6 @@ export async function fetchHomeSections() {
 }
 
 export async function fetchProductById(id) {
-  const staticMatch = getStaticProductById(id);
   try {
     if (/^[0-9a-fA-F]{24}$/.test(String(id))) {
       const res = await fetch(`${API_URL}/products/${id}`);
@@ -139,16 +115,10 @@ export async function fetchProductById(id) {
     }
     const all = await fetchProducts();
     const byId = all.find((p) => String(p.id) === String(id));
-    if (byId) return byId;
-    if (staticMatch) {
-      const byName = all.find(
-        (p) => p.name.toLowerCase() === staticMatch.name.toLowerCase()
-      );
-      if (byName) return byName;
-    }
-    return staticMatch || null;
-  } catch {
-    return staticMatch || null;
+    return byId || null;
+  } catch (err) {
+    console.error("Failed to fetch product by ID from database:", err.message);
+    return null;
   }
 }
 
@@ -181,4 +151,3 @@ export async function createStoreOrder(orderData) {
   }
   return data;
 }
-

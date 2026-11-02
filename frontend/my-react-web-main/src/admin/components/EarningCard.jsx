@@ -5,10 +5,7 @@ import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 
 export default function EarningCard({ amount }) {
-  const displayAmount =
-    amount !== undefined && amount !== null
-      ? `$${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      : '$8,450.00'
+  const displayAmount = `$${Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   return (
     <Card
       sx={{

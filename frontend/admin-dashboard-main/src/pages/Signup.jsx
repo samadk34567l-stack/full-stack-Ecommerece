@@ -100,7 +100,8 @@ export default function Signup() {
         email: email.trim(),
         password,
       })
-      enqueueSnackbar('Account created successfully!', { variant: 'success' })
+      sessionStorage.setItem('berry_last_signup_email', email.trim())
+      enqueueSnackbar('Account created successfully! Please sign in.', { variant: 'success' })
       navigate('/login')
     } catch (err) {
       setErrors({ email: err.message || 'Registration failed' })

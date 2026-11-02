@@ -68,7 +68,7 @@ const renderLegend = () => (
   </Box>
 )
 
-export default function TotalGrowthBarChart() {
+export default function TotalGrowthBarChart({ totalEarnings }) {
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ p: 3 }}>
@@ -78,7 +78,7 @@ export default function TotalGrowthBarChart() {
               Total Growth
             </Typography>
             <Typography variant="h4" sx={{ fontWeight: 700 }}>
-              $2,324.00
+              ${Number(totalEarnings || 0).toFixed(2)}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

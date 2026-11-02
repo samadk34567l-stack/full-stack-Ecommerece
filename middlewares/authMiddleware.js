@@ -1,7 +1,5 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { isDbConnected } = require('../config/db');
-const store = require('../config/memoryStore');
 
 const getToken = (req) => {
   if (
@@ -16,12 +14,6 @@ const getToken = (req) => {
 const findUserFromToken = async (token) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (!isDbConnected()) {
-      return (
-        store.users.find((u) => String(u._id) === String(decoded.id)) ||
-        store.users[0]
-      );
-    }
     return await User.findById(decoded.id).select('-password');
   } catch (error) {
     return null;

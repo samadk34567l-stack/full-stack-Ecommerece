@@ -1,11 +1,23 @@
 import React from 'react'
-import { AppBar, Toolbar, IconButton, Box, Paper, InputBase } from '@mui/material'
+import { AppBar, Toolbar, IconButton, Box, Paper, InputBase, Button, Chip } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import SearchIcon from '@mui/icons-material/Search'
 import TuneIcon from '@mui/icons-material/Tune'
+import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined'
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined'
+import { useNavigate } from 'react-router-dom'
 import { drawerWidth } from './Sidebar.jsx'
+import { getCurrentAdminUser, logoutAdmin } from '../api.js'
 
 export default function Navbar({ onMenuClick, onToggleSidebar, desktopOpen }) {
+  const navigate = useNavigate()
+  const adminUser = getCurrentAdminUser()
+
+  const handleLogout = () => {
+    logoutAdmin()
+    navigate('/login')
+  }
+
   return (
     <AppBar
       position="fixed"
@@ -47,7 +59,6 @@ export default function Navbar({ onMenuClick, onToggleSidebar, desktopOpen }) {
           <MenuIcon sx={{ fontSize: 20 }} />
         </IconButton>
 
-
         <Paper
           component="form"
           onSubmit={(e) => e.preventDefault()}
@@ -73,11 +84,41 @@ export default function Navbar({ onMenuClick, onToggleSidebar, desktopOpen }) {
           </IconButton>
         </Paper>
 
-        <IconButton sx={{ display: { xs: 'inline-flex', sm: 'none' }, ml: 'auto' }}>
-          <SearchIcon />
-        </IconButton>
-
         <Box sx={{ flexGrow: 1 }} />
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {adminUser?.name && (
+            <Chip
+              label={adminUser.name}
+              size="small"
+              sx={{
+                display: { xs: 'none', md: 'inline-flex' },
+                bgcolor: '#e0f2f1',
+                color: '#00695c',
+                fontWeight: 700,
+              }}
+            />
+          )}
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<StorefrontOutlinedIcon fontSize="small" />}
+            onClick={() => navigate('/')}
+            sx={{ textTransform: 'none', borderRadius: 2 }}
+          >
+            SHOP.CO
+          </Button>
+          <Button
+            size="small"
+            color="error"
+            variant="outlined"
+            startIcon={<LogoutOutlinedIcon fontSize="small" />}
+            onClick={handleLogout}
+            sx={{ textTransform: 'none', borderRadius: 2 }}
+          >
+            Logout
+          </Button>
+        </Box>
       </Toolbar>
     </AppBar>
   )

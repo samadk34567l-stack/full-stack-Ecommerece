@@ -1,13 +1,34 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaArrowLeft, FaArrowRight, FaCheckCircle } from "react-icons/fa";
 import StarRating from "../StarRating/StarRating.jsx";
-import { testimonials } from "../../data/products.js";
+import { fetchProducts } from "../../api.js";
 import "./Testimonials.css";
 
 const PER_PAGE = 3;
 
 export default function Testimonials() {
+  const [testimonials, setTestimonials] = useState([]);
   const [start, setStart] = useState(0);
+
+  useEffect(() => {
+    fetchProducts().then((products) => {
+      if (!Array.isArray(products)) return;
+      const collected = [];
+      products.forEach((p) => {
+        (p.reviews || []).forEach((r, idx) => {
+          collected.push({
+            id: `${p.id}-${r.id || idx}`,
+            name: r.name,
+            verified: r.verified !== false,
+            rating: r.rating || 5,
+            text: r.text || r.comment || "",
+          });
+        });
+      });
+      setTestimonials(collected.slice(0, 12));
+    });
+  }, []);
+
   const maxStart = Math.max(0, testimonials.length - PER_PAGE);
 
   function prev() {

@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import { FaSlidersH, FaChevronRight, FaChevronDown, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb.jsx";
 import ProductCard from "../../components/ProductCard/ProductCard.jsx";
-import { allProducts as staticAllProducts } from "../../data/products.js";
 import { fetchProducts } from "../../api.js";
 import "./CategoryPage.css";
 
@@ -17,7 +16,7 @@ export default function CategoryPage() {
   const { style } = useParams();
   const label = style ? style.charAt(0).toUpperCase() + style.slice(1) : "Casual";
 
-  const [products, setProducts] = useState(staticAllProducts);
+  const [products, setProducts] = useState([]);
   const [selectedSize, setSelectedSize] = useState("Large");
   const [selectedColor, setSelectedColor] = useState(COLOR_OPTIONS[5]);
   const [priceRange, setPriceRange] = useState([50, 200]);
@@ -25,7 +24,7 @@ export default function CategoryPage() {
 
   useEffect(() => {
     fetchProducts().then((list) => {
-      if (list?.length) setProducts(list);
+      setProducts(list || []);
     });
   }, []);
 

@@ -2,8 +2,6 @@ const Order = require('../models/Order');
 const Customer = require('../models/Customer');
 const Product = require('../models/Product');
 const User = require('../models/User');
-const { isDbConnected } = require('../config/db');
-const store = require('../config/memoryStore');
 
 const DEFAULT_DELIVERY_FEE = 15;
 const isMongoId = (value) => /^[0-9a-fA-F]{24}$/.test(String(value || ''));
@@ -11,9 +9,6 @@ const round2 = (n) => Math.round(n * 100) / 100;
 
 exports.getOrders = async (req, res, next) => {
   try {
-    if (!isDbConnected()) {
-      return res.json(store.orders);
-    }
     const orders = await Order.find({}).sort({ createdAt: -1 });
     res.json(orders);
   } catch (error) {
@@ -23,14 +18,6 @@ exports.getOrders = async (req, res, next) => {
 
 exports.getOrderById = async (req, res, next) => {
   try {
-    if (!isDbConnected()) {
-      const order = store.orders.find((o) => String(o._id) === String(req.params.id));
-      if (!order) {
-        res.status(404);
-        throw new Error('Order nahi mila');
-      }
-      return res.json(order);
-    }
     const order = await Order.findById(req.params.id);
     if (!order) {
       res.status(404);
@@ -61,41 +48,6 @@ exports.createOrder = async (req, res, next) => {
     if (!Array.isArray(items) || items.length === 0) {
       res.status(400);
       throw new Error('Order mein kam az kam ek item hona chahiye');
-    }
-
-    if (!isDbConnected()) {
-      const cleanItems = items.map((item) => ({
-        productId: item.productId || item._id || item.id,
-        name: item.name || 'Product',
-        price: Number(item.price) || 0,
-        quantity: Math.max(1, Number(item.quantity || item.qty) || 1),
-        selectedColor: item.selectedColor || item.color || '',
-        selectedSize: item.selectedSize || item.size || '',
-        image: item.image || '',
-      }));
-      const subtotal = round2(cleanItems.reduce((sum, i) => sum + i.price * i.quantity, 0));
-      const finalDiscount = round2(Math.min(subtotal, Math.max(0, Number(discountAmount) || 0)));
-      const finalDelivery =
-        deliveryFee !== undefined && Number.isFinite(Number(deliveryFee))
-          ? Math.max(0, Number(deliveryFee))
-          : DEFAULT_DELIVERY_FEE;
-      const newOrder = {
-        _id: `66e004${String(Date.now()).slice(-18).padStart(18, '0')}`,
-        customerName,
-        customerEmail,
-        customerPhone: customerPhone || '',
-        shippingAddress: shippingAddress || '',
-        items: cleanItems,
-        subtotal,
-        discountAmount: finalDiscount,
-        deliveryFee: finalDelivery,
-        totalAmount: round2(subtotal - finalDiscount + finalDelivery),
-        paymentMethod: paymentMethod || 'Cash on Delivery',
-        status: isAdmin && status ? status : 'Pending',
-        createdAt: new Date().toISOString(),
-      };
-      store.orders.unshift(newOrder);
-      return res.status(201).json(newOrder);
     }
 
     const itemIds = items.map((item) =>
@@ -185,13 +137,23 @@ exports.createOrder = async (req, res, next) => {
       status: isAdmin && status ? status : 'Pending',
     });
     if (order.customerEmail) {
+      const normalizedEmail = String(order.customerEmail).toLowerCase().trim();
       await Customer.findOneAndUpdate(
-        { email: order.customerEmail },
+        { email: normalizedEmail },
         {
           $inc: { totalOrders: 1, totalSpent: order.totalAmount },
-          $setOnInsert: {
+          $set: {
             name: order.customerName,
-            phone: order.customerPhone || 'N/A',
+            ...(order.customerPhone ? { phone: order.customerPhone } : {}),
+            ...(order.shippingAddress
+              ? { location: order.shippingAddress, address: order.shippingAddress }
+              : {}),
+          },
+          $setOnInsert: {
+            email: normalizedEmail,
+            status: 'Active',
+            ...(!order.customerPhone ? { phone: 'N/A' } : {}),
+            ...(!order.shippingAddress ? { location: 'N/A', address: 'N/A' } : {}),
           },
         },
         { upsert: true, new: true }
@@ -206,15 +168,6 @@ exports.createOrder = async (req, res, next) => {
 
 exports.updateOrder = async (req, res, next) => {
   try {
-    if (!isDbConnected()) {
-      const idx = store.orders.findIndex((o) => String(o._id) === String(req.params.id));
-      if (idx === -1) {
-        res.status(404);
-        throw new Error('Order nahi mila');
-      }
-      store.orders[idx] = { ...store.orders[idx], ...req.body };
-      return res.json(store.orders[idx]);
-    }
     const order = await Order.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
@@ -231,10 +184,6 @@ exports.updateOrder = async (req, res, next) => {
 
 exports.deleteOrder = async (req, res, next) => {
   try {
-    if (!isDbConnected()) {
-      store.orders = store.orders.filter((o) => String(o._id) !== String(req.params.id));
-      return res.json({ message: 'Order delete ho gaya' });
-    }
     const order = await Order.findByIdAndDelete(req.params.id);
     if (!order) {
       res.status(404);
@@ -248,18 +197,6 @@ exports.deleteOrder = async (req, res, next) => {
 
 exports.getDashboardStats = async (req, res, next) => {
   try {
-    if (!isDbConnected()) {
-      const activeOrders = store.orders.filter((o) => o.status !== 'Cancelled');
-      const totalEarnings = activeOrders.reduce((sum, ord) => sum + (Number(ord.totalAmount) || 0), 0);
-      return res.json({
-        totalOrders: store.orders.length,
-        totalCustomers: store.customers.length,
-        totalProducts: store.products.length,
-        totalUsers: store.users.length,
-        totalEarnings,
-        recentOrders: store.orders.slice(0, 5),
-      });
-    }
     const totalOrders = await Order.countDocuments();
     const totalCustomers = await Customer.countDocuments();
     const totalProducts = await Product.countDocuments();

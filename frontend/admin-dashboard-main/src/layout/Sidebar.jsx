@@ -13,7 +13,7 @@ import {
 } from '@mui/material'
 import DashboardCustomizeOutlinedIcon from '@mui/icons-material/DashboardCustomizeOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
-import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined'
 import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined'
@@ -106,19 +106,19 @@ export default function Sidebar({ mobileOpen, onClose, desktopOpen = true }) {
 
           <ListItemButton
             sx={{ borderRadius: 2, mb: 0.5 }}
-            selected={path === '/user'}
+            selected={path === '/products' || path === '/admin/products'}
             onClick={() => {
-              navigate('/user')
+              navigate('/products')
               if (onClose) onClose()
             }}
           >
-            <ListItemIcon sx={{ minWidth: 34, color: path === '/user' ? 'secondary.dark' : 'grey.600' }}>
-              <PeopleAltOutlinedIcon />
+            <ListItemIcon sx={{ minWidth: 34, color: path === '/products' || path === '/admin/products' ? 'secondary.dark' : 'grey.600' }}>
+              <Inventory2OutlinedIcon />
             </ListItemIcon>
             <ListItemText
               primary={
-                <Typography variant="body2" sx={{ fontWeight: path === '/user' ? 600 : 400 }}>
-                  Users
+                <Typography variant="body2" sx={{ fontWeight: path === '/products' || path === '/admin/products' ? 600 : 400 }}>
+                  Product
                 </Typography>
               }
             />

@@ -27,7 +27,6 @@ import {
   Checkbox,
   Avatar,
   Pagination,
-  PaginationItem,
 } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home'
 import NavigateNextIcon from '@mui/icons-material/NavigateNext'
@@ -38,21 +37,20 @@ import CreditCardIcon from '@mui/icons-material/CreditCard'
 import CheckIcon from '@mui/icons-material/Check'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
-import CloseIcon from '@mui/icons-material/Close'
 import { useNavigate } from 'react-router-dom'
 import { useSnackbar } from 'notistack'
-import { sampleProducts, initialOrders } from '../data/orders.js'
 import { fetchCatalogProducts, createOrderApi } from '../api.js'
 
-const countries = ['United States', 'Canada', 'United Kingdom', 'India', 'Australia', 'Pakistan', 'Germany']
-const cities = ['New York', 'Toronto', 'London', 'Mumbai', 'Sydney', 'Karachi', 'Berlin']
-const paymentMethods = ['Card', 'UPI', 'COD', 'PayPal']
+const countries = ['Pakistan', 'United States', 'Canada', 'United Kingdom', 'India', 'Australia', 'Germany']
+const cities = ['Karachi', 'Lahore', 'Islamabad', 'New York', 'Toronto', 'London', 'Mumbai', 'Sydney', 'Berlin']
+const paymentMethods = ['Cash on Delivery', 'Online Payment', 'Card', 'COD', 'UPI', 'PayPal']
+const orderStatuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled']
 
 export default function OrderCreate() {
   const navigate = useNavigate()
   const { enqueueSnackbar } = useSnackbar()
   const [productSearch, setProductSearch] = useState('')
-  const [catalogProducts, setCatalogProducts] = useState(sampleProducts)
+  const [catalogProducts, setCatalogProducts] = useState([])
   const [selectedProducts, setSelectedProducts] = useState([])
   const [productDialogOpen, setProductDialogOpen] = useState(false)
   const [dialogSearch, setDialogSearch] = useState('')
@@ -61,7 +59,7 @@ export default function OrderCreate() {
 
   useEffect(() => {
     fetchCatalogProducts().then((list) => {
-      if (list?.length) setCatalogProducts(list)
+      setCatalogProducts(list || [])
     })
   }, [])
 
@@ -71,33 +69,33 @@ export default function OrderCreate() {
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [pinCode, setPinCode] = useState('')
-  const [city, setCity] = useState('')
-  const [country, setCountry] = useState('')
-  const [payment, setPayment] = useState('')
+  const [city, setCity] = useState('Karachi')
+  const [country, setCountry] = useState('Pakistan')
+  const [payment, setPayment] = useState('Cash on Delivery')
+  const [status, setStatus] = useState('Pending')
   const [errors, setErrors] = useState({})
   const [productError, setProductError] = useState('')
 
   const validators = {
-    firstName: (v) => (!v.trim() ? 'First name is required' : /^[A-Za-z\s]{2,}$/.test(v.trim()) ? '' : 'Enter a valid name (letters only, min 2 chars)'),
-    userName: (v) => (!v.trim() ? 'User name is required' : v.trim().length < 3 ? 'User name must be at least 3 characters' : ''),
-    email: (v) => (!v.trim() ? 'Email is required' : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? '' : 'Enter a valid email address'),
-    phone: (v) => (!v.trim() ? 'Phone number is required' : /^\d{7,15}$/.test(v.trim().replace(/\D/g, '')) ? '' : 'Enter a valid phone number (7-15 digits)'),
-    address: (v) => (!v.trim() ? 'Address is required' : v.trim().length < 5 ? 'Address must be at least 5 characters' : ''),
-    pinCode: (v) => (!v.trim() ? 'Pin code is required' : /^\d{4,10}$/.test(v.trim()) ? '' : 'Enter a valid pin code (numbers only)'),
-    city: (v) => (!v ? 'City is required' : ''),
-    country: (v) => (!v ? 'Country is required' : ''),
-    payment: (v) => (!v ? 'Payment method is required' : ''),
+    firstName: (v) => (!v.trim() ? 'Customer name is required' : ''),
+    email: (v) =>
+      !v.trim()
+        ? 'Email is required'
+        : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+        ? ''
+        : 'Enter a valid email address',
+    phone: (v) => (!v.trim() ? 'Phone number is required' : ''),
+    address: (v) => (!v.trim() ? 'Address is required' : ''),
   }
 
-  const fieldValues = { firstName, userName, email, phone, address, pinCode, city, country, payment }
+  const fieldValues = { firstName, email, phone, address }
 
   const validateField = (name, value) => {
+    if (!validators[name]) return ''
     const message = validators[name](value)
     setErrors((prev) => ({ ...prev, [name]: message }))
     return message
   }
-
-  const handleBlur = (name) => () => validateField(name, fieldValues[name])
 
   const validateAll = () => {
     const newErrors = {}
@@ -165,13 +163,17 @@ export default function OrderCreate() {
 
   const handleAdd = async () => {
     if (!validateAll()) return
+    const fullAddress = [address.trim(), city, country, pinCode.trim() ? `- ${pinCode.trim()}` : '']
+      .filter(Boolean)
+      .join(', ')
     try {
       await createOrderApi({
         customerName: firstName.trim(),
         customerEmail: email.trim(),
         customerPhone: phone.trim(),
-        shippingAddress: `${address.trim()}, ${city}, ${country} - ${pinCode.trim()}`,
-        paymentMethod: payment,
+        shippingAddress: fullAddress,
+        paymentMethod: payment || 'Cash on Delivery',
+        status: status || 'Pending',
         items: selectedProducts.map((p) => ({
           productId: p._id || p.id,
           name: p.name,
@@ -180,21 +182,10 @@ export default function OrderCreate() {
           image: p.image || '',
         })),
       })
-      enqueueSnackbar('Order created successfully!', { variant: 'success' })
+      enqueueSnackbar('Order created in database!', { variant: 'success' })
       navigate('/order')
     } catch (err) {
-      const maxId = initialOrders.reduce((max, o) => Math.max(max, Number(o.id) || 0), 790960)
-      initialOrders.unshift({
-        id: maxId + 1,
-        customerName: `${firstName}`,
-        branch: country,
-        paymentType: payment,
-        quantity: selectedProducts.reduce((sum, p) => sum + p.quantity, 0),
-        orderDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-        status: 'Pending',
-      })
-      enqueueSnackbar(err.message || 'Order saved locally!', { variant: 'info' })
-      navigate('/order')
+      enqueueSnackbar(err.message || 'Failed to create order in database', { variant: 'error' })
     }
   }
 
@@ -202,13 +193,20 @@ export default function OrderCreate() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          Create
+          Create Order
         </Typography>
         <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
-          <Link underline="hover" color="inherit" href="/" sx={{ display: 'flex', alignItems: 'center' }}>
+          <Link
+            underline="hover"
+            color="inherit"
+            onClick={() => navigate('/admin')}
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+          >
             <HomeIcon fontSize="small" />
           </Link>
-          <Typography color="text.secondary">Order</Typography>
+          <Link underline="hover" color="inherit" onClick={() => navigate('/order')} sx={{ cursor: 'pointer' }}>
+            Order
+          </Link>
           <Typography color="text.primary" sx={{ fontWeight: 600 }}>
             Create
           </Typography>
@@ -222,7 +220,7 @@ export default function OrderCreate() {
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2, flexWrap: 'wrap' }}>
           <Autocomplete
             freeSolo
             options={filteredProducts}
@@ -232,7 +230,7 @@ export default function OrderCreate() {
             onChange={(e, val) => {
               if (val && typeof val !== 'string') addProduct(val)
             }}
-            sx={{ width: 320 }}
+            sx={{ width: { xs: '100%', sm: 320 } }}
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -249,11 +247,7 @@ export default function OrderCreate() {
               />
             )}
           />
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={openProductDialog}
-          >
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openProductDialog}>
             Add Product
           </Button>
         </Box>
@@ -279,9 +273,14 @@ export default function OrderCreate() {
             <TableBody>
               {selectedProducts.map((p) => (
                 <TableRow key={p.id} hover>
-                  <TableCell>{p.name}</TableCell>
-                  <TableCell>{p.id}</TableCell>
-                  <TableCell>${p.price.toFixed(2)}</TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Avatar src={p.image} alt={p.name} variant="rounded" sx={{ width: 38, height: 38 }} />
+                      {p.name}
+                    </Box>
+                  </TableCell>
+                  <TableCell>#{p.code || String(p.id).slice(-6)}</TableCell>
+                  <TableCell>${Number(p.price).toFixed(2)}</TableCell>
                   <TableCell>
                     <TextField
                       type="number"
@@ -304,19 +303,10 @@ export default function OrderCreate() {
         </TableContainer>
 
         {selectedProducts.length === 0 && (
-          <Box sx={{ textAlign: 'center', py: 6 }}>
-            <Box
-              component="img"
-              src="https://raw.githubusercontent.com/codedthemes/berry-free-react-admin-template/master/src/assets/images/e-commerce/empty.svg"
-              alt="No products selected"
-              onError={(e) => {
-                e.target.style.display = 'none'
-              }}
-              sx={{ width: 140, mb: 2 }}
-            />
-            <Typography sx={{ fontWeight: 700, fontSize: 18 }}>No products selected!</Typography>
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Typography sx={{ fontWeight: 700, fontSize: 16 }}>No products selected yet</Typography>
             <Typography variant="body2" color="text.secondary">
-              No products selected. Use the search bar to find and add items, then continue.
+              Click &quot;Add Product&quot; or search above to select items from the database.
             </Typography>
           </Box>
         )}
@@ -324,7 +314,7 @@ export default function OrderCreate() {
         <Divider sx={{ my: 2 }} />
         <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Total : ${total.toFixed(2)}
+            Subtotal: ${total.toFixed(2)} (+ $15 Delivery)
           </Typography>
         </Box>
       </Card>
@@ -336,38 +326,31 @@ export default function OrderCreate() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 3 }}>
           <Box>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              First Name <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+              Customer Name <Box component="span" sx={{ color: 'error.main' }}>*</Box>
             </Typography>
             <TextField
               fullWidth
               size="small"
-              placeholder="Enter first name"
+              placeholder="Enter customer full name"
               value={firstName}
               onChange={(e) => {
                 setFirstName(e.target.value)
                 if (errors.firstName) validateField('firstName', e.target.value)
               }}
-              onBlur={handleBlur('firstName')}
               error={Boolean(errors.firstName)}
               helperText={errors.firstName}
             />
           </Box>
           <Box>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              User Name <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+              User Name (Optional)
             </Typography>
             <TextField
               fullWidth
               size="small"
               placeholder="Enter user name"
               value={userName}
-              onChange={(e) => {
-                setUserName(e.target.value)
-                if (errors.userName) validateField('userName', e.target.value)
-              }}
-              onBlur={handleBlur('userName')}
-              error={Boolean(errors.userName)}
-              helperText={errors.userName}
+              onChange={(e) => setUserName(e.target.value)}
             />
           </Box>
           <Box>
@@ -377,13 +360,12 @@ export default function OrderCreate() {
             <TextField
               fullWidth
               size="small"
-              placeholder="Enter your email"
+              placeholder="Enter customer email"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value)
                 if (errors.email) validateField('email', e.target.value)
               }}
-              onBlur={handleBlur('email')}
               error={Boolean(errors.email)}
               helperText={errors.email}
             />
@@ -395,20 +377,14 @@ export default function OrderCreate() {
             <TextField
               fullWidth
               size="small"
-              placeholder="1231x xxxxx"
+              placeholder="03001234567"
               value={phone}
               onChange={(e) => {
                 setPhone(e.target.value)
                 if (errors.phone) validateField('phone', e.target.value)
               }}
-              onBlur={handleBlur('phone')}
               error={Boolean(errors.phone)}
               helperText={errors.phone}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">US</InputAdornment>
-                ),
-              }}
             />
           </Box>
         </Box>
@@ -418,18 +394,17 @@ export default function OrderCreate() {
         </Typography>
         <Box sx={{ mb: 2 }}>
           <Typography variant="body2" sx={{ mb: 0.5 }}>
-            Address <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+            Shipping Address <Box component="span" sx={{ color: 'error.main' }}>*</Box>
           </Typography>
           <TextField
             fullWidth
             size="small"
-            placeholder="Enter your address"
+            placeholder="Enter shipping address"
             value={address}
             onChange={(e) => {
               setAddress(e.target.value)
               if (errors.address) validateField('address', e.target.value)
             }}
-            onBlur={handleBlur('address')}
             error={Boolean(errors.address)}
             helperText={errors.address}
           />
@@ -437,118 +412,94 @@ export default function OrderCreate() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2, mb: 3 }}>
           <Box>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              Pin Code <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+              Pin Code
             </Typography>
             <TextField
               fullWidth
               size="small"
-              placeholder="123456"
+              placeholder="75500"
               value={pinCode}
-              onChange={(e) => {
-                setPinCode(e.target.value)
-                if (errors.pinCode) validateField('pinCode', e.target.value)
-              }}
-              onBlur={handleBlur('pinCode')}
-              error={Boolean(errors.pinCode)}
-              helperText={errors.pinCode}
+              onChange={(e) => setPinCode(e.target.value)}
             />
           </Box>
           <Box>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              City <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+              City
             </Typography>
-            <FormControl fullWidth size="small" error={Boolean(errors.city)}>
-              <Select
-                displayEmpty
-                value={city}
-                onChange={(e) => {
-                  setCity(e.target.value)
-                  validateField('city', e.target.value)
-                }}
-                onBlur={handleBlur('city')}
-                renderValue={(val) => val || <Box component="span" sx={{ color: 'text.disabled' }}>Select City</Box>}
-              >
+            <FormControl fullWidth size="small">
+              <Select value={city} onChange={(e) => setCity(e.target.value)}>
                 {cities.map((c) => (
                   <MenuItem key={c} value={c}>
                     {c}
                   </MenuItem>
                 ))}
               </Select>
-              {errors.city && (
-                <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                  {errors.city}
-                </Typography>
-              )}
             </FormControl>
           </Box>
           <Box>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              Country <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+              Country
             </Typography>
-            <FormControl fullWidth size="small" error={Boolean(errors.country)}>
-              <Select
-                displayEmpty
-                value={country}
-                onChange={(e) => {
-                  setCountry(e.target.value)
-                  validateField('country', e.target.value)
-                }}
-                onBlur={handleBlur('country')}
-                renderValue={(val) => val || <Box component="span" sx={{ color: 'text.disabled' }}>Select Country</Box>}
-              >
+            <FormControl fullWidth size="small">
+              <Select value={country} onChange={(e) => setCountry(e.target.value)}>
                 {countries.map((c) => (
                   <MenuItem key={c} value={c}>
                     {c}
                   </MenuItem>
                 ))}
               </Select>
-              {errors.country && (
-                <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                  {errors.country}
-                </Typography>
-              )}
             </FormControl>
           </Box>
         </Box>
 
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-          Payment
+          Payment &amp; Status
         </Typography>
-        <FormControl fullWidth size="small" sx={{ mb: 3 }} error={Boolean(errors.payment)}>
-          <Select
-            displayEmpty
-            value={payment}
-            onChange={(e) => {
-              setPayment(e.target.value)
-              validateField('payment', e.target.value)
-            }}
-            onBlur={handleBlur('payment')}
-            startAdornment={
-              <InputAdornment position="start">
-                <CreditCardIcon fontSize="small" />
-              </InputAdornment>
-            }
-            renderValue={(val) => val || <Box component="span" sx={{ color: 'text.disabled' }}>Select Payment Method</Box>}
-          >
-            {paymentMethods.map((m) => (
-              <MenuItem key={m} value={m}>
-                {m}
-              </MenuItem>
-            ))}
-          </Select>
-          {errors.payment && (
-            <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-              {errors.payment}
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 3 }}>
+          <Box>
+            <Typography variant="body2" sx={{ mb: 0.5 }}>
+              Payment Method
             </Typography>
-          )}
-        </FormControl>
+            <FormControl fullWidth size="small">
+              <Select
+                value={payment}
+                onChange={(e) => setPayment(e.target.value)}
+                startAdornment={
+                  <InputAdornment position="start">
+                    <CreditCardIcon fontSize="small" />
+                  </InputAdornment>
+                }
+              >
+                {paymentMethods.map((m) => (
+                  <MenuItem key={m} value={m}>
+                    {m}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+          <Box>
+            <Typography variant="body2" sx={{ mb: 0.5 }}>
+              Order Status
+            </Typography>
+            <FormControl fullWidth size="small">
+              <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+                {orderStatuses.map((s) => (
+                  <MenuItem key={s} value={s}>
+                    {s}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </Box>
 
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
           <Button color="error" onClick={() => navigate('/order')}>
             Discard
           </Button>
           <Button variant="contained" onClick={handleAdd}>
-            Add
+            Create Order
           </Button>
         </Box>
       </Card>
@@ -619,11 +570,16 @@ export default function OrderCreate() {
               >
                 <Checkbox checked={checked} onClick={(e) => e.stopPropagation()} onChange={() => toggleProductInDialog(product)} />
                 <Avatar src={product.image} variant="rounded" sx={{ width: 40, height: 40, mr: 1.5 }} />
-                <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
-                  {product.name}
-                </Typography>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {product.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    ${Number(product.price).toFixed(2)} • {product.category}
+                  </Typography>
+                </Box>
                 <Typography variant="body2" color="text.secondary">
-                  {product.code}
+                  #{product.code}
                 </Typography>
               </Box>
             )

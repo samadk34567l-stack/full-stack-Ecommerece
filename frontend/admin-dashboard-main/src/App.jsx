@@ -2,8 +2,7 @@ import React, { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import MainLayout from './layout/MainLayout.jsx'
 import Dashboard from './pages/Dashboard.jsx'
-import UserList from './pages/UserList.jsx'
-import UserProfile from './pages/UserProfile.jsx'
+import ProductList from './pages/ProductList.jsx'
 import CustomerList from './pages/CustomerList.jsx'
 import CustomerCreate from './pages/CustomerCreate.jsx'
 import CustomerDetails from './pages/CustomerDetails.jsx'
@@ -28,8 +27,8 @@ export default function App() {
           <MainLayout mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}>
             <Routes>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/user" element={<UserList />} />
-              <Route path="/user/:id" element={<UserProfile />} />
+              <Route path="/products" element={<ProductList />} />
+              <Route path="/admin/products" element={<ProductList />} />
               <Route path="/customer" element={<CustomerList />} />
               <Route path="/customer/create" element={<CustomerCreate />} />
               <Route path="/customer/details/:id" element={<CustomerDetails />} />
